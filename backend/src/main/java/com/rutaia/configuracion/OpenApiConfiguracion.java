@@ -1,0 +1,43 @@
+package com.rutaia.configuracion;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.servers.Server;
+import io.swagger.v3.oas.models.tags.Tag;
+
+@Configuration
+public class OpenApiConfiguracion {
+
+	@Bean
+	OpenAPI rutaiaOpenApi() {
+		return new OpenAPI()
+				.info(new Info()
+						.title("RutaIA API")
+						.version("0.0.1")
+						.description("API REST de RutaIA, aplicación de orientación académica que recomienda cursos "
+								+ "del catálogo institucional. Toda respuesta 4xx/5xx usa el cuerpo `Error`. "
+								+ "Las operaciones de administración de cursos no requieren autenticación."))
+				.addServersItem(new Server().url("http://localhost:8080").description("Local"))
+				.addTagsItem(new Tag().name(Etiquetas.ESTUDIANTES)
+						.description("Registro y consulta de estudiantes (RF 01 y RF 02)"))
+				.addTagsItem(new Tag().name(Etiquetas.CATALOGO)
+						.description("Catálogo público de cursos activos (RF 04)"))
+				.addTagsItem(new Tag().name(Etiquetas.ADMINISTRACION)
+						.description("Registro, consulta, actualización y desactivación de cursos (RF 03)"));
+	}
+
+	public static final class Etiquetas {
+
+		public static final String ESTUDIANTES = "Estudiantes";
+		public static final String CATALOGO = "Catálogo de cursos";
+		public static final String ADMINISTRACION = "Administración de cursos";
+
+		private Etiquetas() {
+		}
+
+	}
+
+}

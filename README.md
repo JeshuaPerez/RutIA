@@ -106,7 +106,37 @@ En n8n 2.x solo la versión **publicada** atiende la URL de producción `/webhoo
 
 ## 7. Endpoints principales y ejemplos de uso
 
-*Pendiente (Etapa de backend):* tabla de endpoints de `http://localhost:8080/api` y ejemplos con `curl.exe` (PowerShell) y `curl` (bash), con cuerpos en `pruebas/api/`. Especificación completa en [docs/openapi.json](docs/openapi.json) y Swagger UI.
+Base `http://localhost:8080/api`, JSON UTF-8. Toda respuesta 4xx/5xx usa el cuerpo `{status, error, mensaje, ruta, fecha, detalles}`. Documentación interactiva en http://localhost:8080/swagger-ui.html.
+
+| ID | Método y ruta | Respuesta | Errores |
+|---|---|---|---|
+| E-01 | `POST /api/estudiantes` | 201 Estudiante + `Location` | 400 · 409 correo ya registrado |
+| E-02 | `GET /api/estudiantes` | 200 lista, id asc | — |
+| E-03 | `GET /api/estudiantes/{id}` | 200 Estudiante | 404 |
+| E-05 | `GET /api/cursos?categoria=&nivel=` | 200 cursos activos, id asc | 400 nivel inválido |
+| E-06 | `POST /api/admin/cursos` | 201 CursoAdmin (`activo` = true) + `Location` | 400 |
+| E-07 | `GET /api/admin/cursos` | 200 activos e inactivos, id asc | — |
+| E-08 | `GET /api/admin/cursos/{id}` | 200 CursoAdmin | 404 |
+| E-09 | `PUT /api/admin/cursos/{id}` | 200 CursoAdmin (`activo` no cambia) | 400 · 404 |
+| E-10 | `PATCH /api/admin/cursos/{id}/desactivar` | 200 CursoAdmin (`activo` = false; idempotente) | 404 |
+
+Ejemplos desde la raíz del repositorio (cuerpos en `pruebas/api/`). PowerShell:
+
+```powershell
+curl.exe -s -i -X POST "http://localhost:8080/api/estudiantes" --data-binary "@pruebas/api/etapa2-estudiante-valido.json" -H "Content-Type: application/json"
+curl.exe -s "http://localhost:8080/api/cursos?categoria=Desarrollo%20web&nivel=B%C3%A1sico"
+curl.exe -s -X PATCH "http://localhost:8080/api/admin/cursos/1/desactivar"
+```
+
+bash:
+
+```bash
+curl -s -i -X POST "http://localhost:8080/api/estudiantes" --data-binary "@pruebas/api/etapa2-estudiante-valido.json" -H "Content-Type: application/json"
+curl -s "http://localhost:8080/api/cursos?categoria=Desarrollo%20web&nivel=B%C3%A1sico"
+curl -s -X PATCH "http://localhost:8080/api/admin/cursos/1/desactivar"
+```
+
+*Pendiente (Etapas 6–7):* endpoints de consultas, historial, calificaciones y estadísticas; exportación de la especificación a [docs/openapi.json](docs/openapi.json).
 
 ## 8. Errores conocidos
 

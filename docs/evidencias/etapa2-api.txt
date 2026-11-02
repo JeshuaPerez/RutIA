@@ -1,0 +1,256 @@
+Etapa 2 · 2026-11-02 17:05:44 · API http://localhost:8080/api
+
+=== E2-01 · Alta válida (correo con espacios y mayúsculas)
+> curl -s -i -X POST "http://localhost:8080/api/estudiantes" --data-binary "@pruebas/api/etapa2-estudiante-valido.json" -H "Content-Type: application/json"
+HTTP/1.1 201 
+Location: http://localhost:8080/api/estudiantes/11
+Content-Type: application/json
+{"id":11,"nombreCompleto":"Ana María Torres","correo":"ana.torres@rutaia.test","nivelExperiencia":"Principiante","areaInteres":"Desarrollo web","fechaRegistro":"2026-11-02T17:05:44"}
+
+=== E2-02 · Mismo correo con otras mayúsculas
+> curl -s -i -X POST "http://localhost:8080/api/estudiantes" --data-binary "@pruebas/api/etapa2-estudiante-correo-mayusculas.json" -H "Content-Type: application/json"
+HTTP/1.1 409 
+Content-Type: application/json
+{"status":409,"error":"Conflict","mensaje":"El correo ana.torres@rutaia.test ya está registrado","ruta":"/api/estudiantes","fecha":"2026-11-02T17:05:45","detalles":[{"campo":"correo","mensaje":"ya está registrado"}]}
+
+=== E2-03 · nivelExperiencia Experto
+> curl -s -i -X POST "http://localhost:8080/api/estudiantes" --data-binary "@pruebas/api/etapa2-estudiante-nivel-experto.json" -H "Content-Type: application/json"
+HTTP/1.1 400 
+Content-Type: application/json
+{"status":400,"error":"Bad Request","mensaje":"La solicitud contiene datos inválidos","ruta":"/api/estudiantes","fecha":"2026-11-02T17:05:45","detalles":[{"campo":"nivelExperiencia","mensaje":"debe ser Principiante, Intermedio o Avanzado"}]}
+
+=== E2-04 · nivelExperiencia principiante (minúsculas)
+> curl -s -i -X POST "http://localhost:8080/api/estudiantes" --data-binary "@pruebas/api/etapa2-estudiante-nivel-minusculas.json" -H "Content-Type: application/json"
+HTTP/1.1 400 
+Content-Type: application/json
+{"status":400,"error":"Bad Request","mensaje":"La solicitud contiene datos inválidos","ruta":"/api/estudiantes","fecha":"2026-11-02T17:05:45","detalles":[{"campo":"nivelExperiencia","mensaje":"debe ser Principiante, Intermedio o Avanzado"}]}
+
+=== E2-05 · Falta nombreCompleto
+> curl -s -i -X POST "http://localhost:8080/api/estudiantes" --data-binary "@pruebas/api/etapa2-estudiante-sin-nombre.json" -H "Content-Type: application/json"
+HTTP/1.1 400 
+Content-Type: application/json
+{"status":400,"error":"Bad Request","mensaje":"La solicitud contiene datos inválidos","ruta":"/api/estudiantes","fecha":"2026-11-02T17:05:45","detalles":[{"campo":"nombreCompleto","mensaje":"es obligatorio"}]}
+
+=== E2-06 · Correo inválido
+> curl -s -i -X POST "http://localhost:8080/api/estudiantes" --data-binary "@pruebas/api/etapa2-estudiante-correo-invalido.json" -H "Content-Type: application/json"
+HTTP/1.1 400 
+Content-Type: application/json
+{"status":400,"error":"Bad Request","mensaje":"La solicitud contiene datos inválidos","ruta":"/api/estudiantes","fecha":"2026-11-02T17:05:45","detalles":[{"campo":"correo","mensaje":"debe ser un correo válido"}]}
+
+=== E2-07 · JSON mal formado
+> curl -s -i -X POST "http://localhost:8080/api/estudiantes" --data-binary "@pruebas/api/etapa2-json-mal-formado.json" -H "Content-Type: application/json"
+HTTP/1.1 400 
+Content-Type: application/json
+{"status":400,"error":"Bad Request","mensaje":"El cuerpo de la solicitud no es un JSON válido","ruta":"/api/estudiantes","fecha":"2026-11-02T17:05:45","detalles":[]}
+
+=== E2-08 · Listar estudiantes (semilla + alta de E2-01)
+> curl -s "http://localhost:8080/api/estudiantes"
+HTTP 200
+elementos: 11
+ids: 1 2 3 4 5 6 7 8 9 10 11 
+activo=false: 0
+
+=== E2-09 · Estudiante 1
+> curl -s -i -X GET "http://localhost:8080/api/estudiantes/1"
+HTTP/1.1 200 
+Content-Type: application/json
+{"id":1,"nombreCompleto":"Valeria Gómez Rojas","correo":"valeria.gomez@rutaia.test","nivelExperiencia":"Principiante","areaInteres":"Desarrollo web","fechaRegistro":"2026-11-02T22:50:32"}
+
+=== E2-10 · Estudiante inexistente
+> curl -s -i -X GET "http://localhost:8080/api/estudiantes/999999"
+HTTP/1.1 404 
+Content-Type: application/json
+{"status":404,"error":"Not Found","mensaje":"No existe un estudiante con id 999999","ruta":"/api/estudiantes/999999","fecha":"2026-11-02T17:05:46","detalles":[]}
+
+=== E2-11 · Id no numérico
+> curl -s -i -X GET "http://localhost:8080/api/estudiantes/abc"
+HTTP/1.1 400 
+Content-Type: application/json
+{"status":400,"error":"Bad Request","mensaje":"La solicitud contiene parámetros inválidos","ruta":"/api/estudiantes/abc","fecha":"2026-11-02T17:05:46","detalles":[{"campo":"id","mensaje":"debe ser un número entero"}]}
+
+=== E2-12 · Catálogo sin filtros
+> curl -s "http://localhost:8080/api/cursos"
+HTTP 200
+elementos: 28
+ids: 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 
+activo=false: 0
+      7 "nivel":"Avanzado"
+      9 "nivel":"Básico"
+     12 "nivel":"Intermedio"
+
+=== E2-13 · Catálogo categoria=Desarrollo web
+> curl -s "http://localhost:8080/api/cursos?categoria=Desarrollo%20web"
+HTTP 200
+elementos: 4
+ids: 1 2 3 4 
+activo=false: 0
+      4 "categoria":"Desarrollo web"
+
+=== E2-14 · Catálogo nivel=Básico
+> curl -s "http://localhost:8080/api/cursos?nivel=B%C3%A1sico"
+HTTP 200
+elementos: 9
+ids: 1 5 9 12 17 19 22 23 28 
+activo=false: 0
+      9 "nivel":"Básico"
+
+=== E2-15 · Catálogo categoria=Programación y nivel=Intermedio
+> curl -s "http://localhost:8080/api/cursos?categoria=Programaci%C3%B3n&nivel=Intermedio"
+HTTP 200
+elementos: 2
+ids: 6 7 
+activo=false: 0
+      2 "nivel":"Intermedio"
+
+=== E2-16 · Catálogo nivel=Experto
+> curl -s -i -X GET "http://localhost:8080/api/cursos?nivel=Experto"
+HTTP/1.1 400 
+Content-Type: application/json
+{"status":400,"error":"Bad Request","mensaje":"La solicitud contiene parámetros inválidos","ruta":"/api/cursos","fecha":"2026-11-02T17:05:48","detalles":[{"campo":"nivel","mensaje":"debe ser Básico, Intermedio o Avanzado"}]}
+
+=== E2-17 · Catálogo nivel=Basico (sin tilde)
+> curl -s -i -X GET "http://localhost:8080/api/cursos?nivel=Basico"
+HTTP/1.1 400 
+Content-Type: application/json
+{"status":400,"error":"Bad Request","mensaje":"La solicitud contiene parámetros inválidos","ruta":"/api/cursos","fecha":"2026-11-02T17:05:48","detalles":[{"campo":"nivel","mensaje":"debe ser Básico, Intermedio o Avanzado"}]}
+
+=== E2-18 · Registrar curso sin nombre
+> curl -s -i -X POST "http://localhost:8080/api/admin/cursos" --data-binary "@pruebas/api/etapa2-curso-sin-nombre.json" -H "Content-Type: application/json"
+HTTP/1.1 400 
+Content-Type: application/json
+{"status":400,"error":"Bad Request","mensaje":"La solicitud contiene datos inválidos","ruta":"/api/admin/cursos","fecha":"2026-11-02T17:05:48","detalles":[{"campo":"nombre","mensaje":"es obligatorio"}]}
+
+=== E2-19 · Registrar curso con duracionHoras 0
+> curl -s -i -X POST "http://localhost:8080/api/admin/cursos" --data-binary "@pruebas/api/etapa2-curso-duracion-cero.json" -H "Content-Type: application/json"
+HTTP/1.1 400 
+Content-Type: application/json
+{"status":400,"error":"Bad Request","mensaje":"La solicitud contiene datos inválidos","ruta":"/api/admin/cursos","fecha":"2026-11-02T17:05:48","detalles":[{"campo":"duracionHoras","mensaje":"debe ser mayor que cero"}]}
+
+=== E2-20 · Registrar curso con nivel Basico
+> curl -s -i -X POST "http://localhost:8080/api/admin/cursos" --data-binary "@pruebas/api/etapa2-curso-nivel-invalido.json" -H "Content-Type: application/json"
+HTTP/1.1 400 
+Content-Type: application/json
+{"status":400,"error":"Bad Request","mensaje":"La solicitud contiene datos inválidos","ruta":"/api/admin/cursos","fecha":"2026-11-02T17:05:48","detalles":[{"campo":"nivel","mensaje":"debe ser Básico, Intermedio o Avanzado"}]}
+
+=== E2-21 · Registrar curso válido
+> curl -s -i -X POST "http://localhost:8080/api/admin/cursos" --data-binary "@pruebas/api/etapa2-curso-valido.json" -H "Content-Type: application/json"
+HTTP/1.1 201 
+Location: http://localhost:8080/api/admin/cursos/31
+Content-Type: application/json
+{"id":31,"nombre":"Introducción a TypeScript para aplicaciones web","descripcion":"Curso práctico sobre tipos, interfaces y genéricos en TypeScript para crear aplicaciones web mantenibles.","categoria":"Desarrollo web","nivel":"Intermedio","duracionHoras":24,"activo":true}
+
+=== E2-22 · Consultar curso 31
+> curl -s -i -X GET "http://localhost:8080/api/admin/cursos/31"
+HTTP/1.1 200 
+Content-Type: application/json
+{"id":31,"nombre":"Introducción a TypeScript para aplicaciones web","descripcion":"Curso práctico sobre tipos, interfaces y genéricos en TypeScript para crear aplicaciones web mantenibles.","categoria":"Desarrollo web","nivel":"Intermedio","duracionHoras":24,"activo":true}
+
+=== E2-23 · Actualizar curso 31
+> curl -s -i -X PUT "http://localhost:8080/api/admin/cursos/31" --data-binary "@pruebas/api/etapa2-curso-actualizado.json" -H "Content-Type: application/json"
+HTTP/1.1 200 
+Content-Type: application/json
+{"id":31,"nombre":"TypeScript para aplicaciones web modernas","descripcion":"Curso práctico sobre tipos, interfaces, genéricos y módulos en TypeScript para crear y mantener aplicaciones web.","categoria":"Desarrollo web","nivel":"Avanzado","duracionHoras":30,"activo":true}
+
+=== E2-24 · Actualizar curso inexistente
+> curl -s -i -X PUT "http://localhost:8080/api/admin/cursos/999999" --data-binary "@pruebas/api/etapa2-curso-actualizado.json" -H "Content-Type: application/json"
+HTTP/1.1 404 
+Content-Type: application/json
+{"status":404,"error":"Not Found","mensaje":"No existe un curso con id 999999","ruta":"/api/admin/cursos/999999","fecha":"2026-11-02T17:05:49","detalles":[]}
+
+=== E2-25 · Actualizar curso 31 con duracionHoras 0
+> curl -s -i -X PUT "http://localhost:8080/api/admin/cursos/31" --data-binary "@pruebas/api/etapa2-curso-duracion-cero.json" -H "Content-Type: application/json"
+HTTP/1.1 400 
+Content-Type: application/json
+{"status":400,"error":"Bad Request","mensaje":"La solicitud contiene datos inválidos","ruta":"/api/admin/cursos/31","fecha":"2026-11-02T17:05:49","detalles":[{"campo":"duracionHoras","mensaje":"debe ser mayor que cero"}]}
+
+=== E2-26 · Desactivar curso 31
+> curl -s -i -X PATCH "http://localhost:8080/api/admin/cursos/31/desactivar"
+HTTP/1.1 200 
+Content-Type: application/json
+{"id":31,"nombre":"TypeScript para aplicaciones web modernas","descripcion":"Curso práctico sobre tipos, interfaces, genéricos y módulos en TypeScript para crear y mantener aplicaciones web.","categoria":"Desarrollo web","nivel":"Avanzado","duracionHoras":30,"activo":false}
+
+=== E2-27 · Desactivar curso 31 otra vez (idempotente)
+> curl -s -i -X PATCH "http://localhost:8080/api/admin/cursos/31/desactivar"
+HTTP/1.1 200 
+Content-Type: application/json
+{"id":31,"nombre":"TypeScript para aplicaciones web modernas","descripcion":"Curso práctico sobre tipos, interfaces, genéricos y módulos en TypeScript para crear y mantener aplicaciones web.","categoria":"Desarrollo web","nivel":"Avanzado","duracionHoras":30,"activo":false}
+
+=== E2-28 · Desactivar curso inexistente
+> curl -s -i -X PATCH "http://localhost:8080/api/admin/cursos/999999/desactivar"
+HTTP/1.1 404 
+Content-Type: application/json
+{"status":404,"error":"Not Found","mensaje":"No existe un curso con id 999999","ruta":"/api/admin/cursos/999999/desactivar","fecha":"2026-11-02T17:05:49","detalles":[]}
+
+=== E2-29 · Catálogo tras desactivar el 31
+> curl -s "http://localhost:8080/api/cursos"
+HTTP 200
+elementos: 28
+ids: 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 
+activo=false: 0
+
+=== E2-30 · Administración tras desactivar el 31
+> curl -s "http://localhost:8080/api/admin/cursos"
+HTTP 200
+elementos: 31
+ids: 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 
+activo=false: 3
+
+=== E2-31 · Consultar curso inexistente
+> curl -s -i -X GET "http://localhost:8080/api/admin/cursos/999999"
+HTTP/1.1 404 
+Content-Type: application/json
+{"status":404,"error":"Not Found","mensaje":"No existe un curso con id 999999","ruta":"/api/admin/cursos/999999","fecha":"2026-11-02T17:05:50","detalles":[]}
+
+=== E2-32 · Preflight CORS desde http://localhost:5500
+> curl -s -i -X OPTIONS "http://localhost:8080/api/cursos" -H "Origin: http://localhost:5500" -H "Access-Control-Request-Method: GET"
+HTTP/1.1 200 
+Access-Control-Allow-Origin: http://localhost:5500
+Access-Control-Allow-Methods: GET,POST,PUT,PATCH,OPTIONS
+Access-Control-Max-Age: 1800
+
+=== E2-33 · Preflight CORS desde http://otro.test
+> curl -s -i -X OPTIONS "http://localhost:8080/api/cursos" -H "Origin: http://otro.test" -H "Access-Control-Request-Method: GET"
+HTTP/1.1 403 
+Invalid CORS request
+(sin cabecera Access-Control-Allow-Origin)
+
+=== E2-34 · OpenAPI: rutas y etiquetas
+> curl -s "http://localhost:8080/v3/api-docs"
+título: "title":"RutaIA API"
+operaciones: consultarCursoAdmin actualizarCurso listarEstudiantes registrarEstudiante listarCursosAdmin registrarCurso desactivarCurso consultarEstudiante listarCatalogo 
+etiquetas: Estudiantes,Catálogo de cursos,Administración de cursos,
+Swagger UI: 302 -> http://localhost:8080/swagger-ui/index.html
+
+--- Casos adicionales ---
+
+=== E2-35 · 10 altas simultáneas con el mismo correo
+> 10 x curl -s -o NUL -w "%{http_code}" -X POST "http://localhost:8080/api/estudiantes" --data-binary "@pruebas/api/etapa2-estudiante-concurrente.json" -H "Content-Type: application/json" (en paralelo)
+      1 201
+      9 409
+
+=== E2-36 · Preflight POST con Content-Type desde http://127.0.0.1:5500
+HTTP/1.1 200 
+Access-Control-Allow-Origin: http://127.0.0.1:5500
+Access-Control-Allow-Methods: GET,POST,PUT,PATCH,OPTIONS
+Access-Control-Allow-Headers: Content-Type
+Access-Control-Max-Age: 1800
+
+=== E2-37 · Preflight DELETE desde http://localhost:5500 (método no permitido)
+HTTP/1.1 403 
+Invalid CORS request
+
+=== E2-38 · duracionHoras 1.5
+HTTP/1.1 400 
+{"status":400,"error":"Bad Request","mensaje":"La solicitud contiene datos inválidos","ruta":"/api/admin/cursos","fecha":"2026-11-02T17:06:08","detalles":[{"campo":"duracionHoras","mensaje":"tiene un tipo o formato inválido"}]}
+
+=== E2-39 · Ruta inexistente y método no permitido
+HTTP/1.1 404 
+{"status":404,"error":"Not Found","mensaje":"El recurso solicitado no existe","ruta":"/api/no-existe","fecha":"2026-11-02T17:06:08","detalles":[]}
+HTTP/1.1 405 
+{"status":405,"error":"Method Not Allowed","mensaje":"Método HTTP no permitido para esta ruta","ruta":"/api/estudiantes/1","fecha":"2026-11-02T17:06:08","detalles":[]}
+
+=== E2-40 · Unicidad concurrente: transacción de psql con el mismo correo sin confirmar
+> psql: BEGIN; INSERT INTO estudiante (... correo = carrera@rutaia.test ...); SELECT pg_sleep(4); COMMIT;
+> curl -s -i -X POST "http://localhost:8080/api/estudiantes" --data-binary "@pruebas/api/etapa2-estudiante-carrera.json" -H "Content-Type: application/json"   (1,5 s después)
+HTTP/1.1 409 
+{"status":409,"error":"Conflict","mensaje":"El correo carrera@rutaia.test ya está registrado","ruta":"/api/estudiantes","fecha":"2026-11-02T17:06:43","detalles":[{"campo":"correo","mensaje":"ya está registrado"}]}

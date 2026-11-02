@@ -56,3 +56,44 @@ Fecha: 2026-11-02 · Máquina: Windows 11 Home 10.0.26200 · PostgreSQL 17.11 (c
 Total de solicitudes a OpenRouter en la Etapa 1: **0**.
 
 Después de E1-08…E1-18 se recargaron `01` y `02` (E1-01) porque los `INSERT` fallidos consumen valores de las secuencias IDENTITY.
+
+## Etapa 2 — API núcleo: estudiantes y cursos
+
+Fecha: 2026-11-02 · Máquina: Windows 11 Home 10.0.26200 · Java 21.0.13 (Temurin) · Spring Boot 4.1.2 · springdoc-openapi 3.2.0. Comandos ejecutados con `curl` desde Git Bash en la raíz del repositorio; en PowerShell son idénticos cambiando `curl` por `curl.exe` (los cuerpos se envían con `--data-binary "@pruebas/api/<archivo>.json" -H "Content-Type: application/json"`). La API se arranca con `cd backend; .\gradlew.bat bootRun` (PowerShell) o `cd backend && ./gradlew bootRun` (bash). Salida completa en `docs/evidencias/etapa2-api.txt`.
+
+| ID | Requisito | Pasos | Esperado | Obtenido | Evidencia | Solicitudes a OpenRouter |
+|---|---|---|---|---|---|---|
+| E2-00a | Claves fuera del código / arranque con el .env | `bootRun` con el `.env` de la raíz | Arranca; `ddl-auto=validate` sin errores | OK: «Started RutaiaApiApplication» | Log de `bootRun` | 0 |
+| E2-00b | Mensaje claro si falta la contraseña | Renombrar `.env` y ejecutar `bootRun` | Falla indicando qué variable falta y cómo corregirlo | OK: «APPLICATION FAILED TO START … Falta la variable RUTAIA_DB_PASSWORD o está vacía…» | `docs/evidencias/etapa2-arranque-sin-password.txt` | 0 |
+| E2-00c | `gradlew` ejecutable en Git | `git ls-files -s backend/gradlew` | Modo 100755 | OK: `100755` | `git ls-files -s` | 0 |
+| E2-01 | RF 01 registrar | POST /api/estudiantes con `etapa2-estudiante-valido.json` (correo `  Ana.Torres@RutaIA.test `) | 201, `Location`, correo con trim y en minúsculas | OK: 201, `Location: http://localhost:8080/api/estudiantes/11`, correo `ana.torres@rutaia.test`, `fechaRegistro` en hora local | `etapa2-api.txt` (E2-01) | 0 |
+| E2-02 | RF 01 impedir correos duplicados | POST con `etapa2-estudiante-correo-mayusculas.json` (`ANA.TORRES@rutaia.TEST`) | 409 | OK: 409, detalle `correo` «ya está registrado» | `etapa2-api.txt` (E2-02) | 0 |
+| E2-03 | RF 01 niveles permitidos | POST con nivelExperiencia `Experto` y `principiante` | 400 con detalles | OK: 400 y 400, detalle `nivelExperiencia` «debe ser Principiante, Intermedio o Avanzado» | `etapa2-api.txt` (E2-03, E2-04) | 0 |
+| E2-04 | RF 01 campos obligatorios | POST sin nombreCompleto; con correo `marta.ruiz-sin-arroba` | 400 con detalles | OK: 400 «es obligatorio» y 400 «debe ser un correo válido» | `etapa2-api.txt` (E2-05, E2-06) | 0 |
+| E2-05 | 8.2 JSON mal formado | POST con `etapa2-json-mal-formado.json` | 400, `detalles` [] | OK | `etapa2-api.txt` (E2-07) | 0 |
+| E2-06 | RF 02 listar | GET /api/estudiantes | 200, ids ascendentes (10 de la semilla) | OK: ids 1..10 de la semilla + 11 (alta de E2-01) | `etapa2-api.txt` (E2-08) | 0 |
+| E2-07 | RF 02 consultar por id | GET /api/estudiantes/1 | 200 | OK | `etapa2-api.txt` (E2-09) | 0 |
+| E2-08 | RF 02 estudiante inexistente | GET /api/estudiantes/999999 | 404 con cuerpo de C6 | OK: 404 «No existe un estudiante con id 999999», `detalles` [] | `etapa2-api.txt` (E2-10) | 0 |
+| E2-09 | 8.2 parámetro inválido | GET /api/estudiantes/abc | 400 | OK: 400, detalle `id` «debe ser un número entero» | `etapa2-api.txt` (E2-11) | 0 |
+| E2-10 | RF 04 solo activos | GET /api/cursos | 28 cursos, ninguno inactivo | OK: 28 (ids 1..28); 29 y 30 no aparecen | `etapa2-api.txt` (E2-12) | 0 |
+| E2-11 | RF 04 filtrar por categoría y nivel | `?categoria=Desarrollo%20web`; `?nivel=B%C3%A1sico`; `?categoria=Programaci%C3%B3n&nivel=Intermedio` | Solo cursos activos que cumplen | OK: 4 (1–4); 9 Básico activos; 2 (6, 7) | `etapa2-api.txt` (E2-13 a E2-15) | 0 |
+| E2-12 | C5 nivel inválido en el filtro | `?nivel=Experto`; `?nivel=Basico` | 400 | OK: 400 y 400, detalle `nivel` «debe ser Básico, Intermedio o Avanzado» | `etapa2-api.txt` (E2-16, E2-17) | 0 |
+| E2-13 | «No podrán registrarse cursos sin nombre o descripción» | POST /api/admin/cursos con `etapa2-curso-sin-nombre.json` | 400 | OK: 400, detalle `nombre` «es obligatorio» | `etapa2-api.txt` (E2-18) | 0 |
+| E2-14 | «La duración de un curso deberá ser mayor que cero» | POST con duracionHoras 0; con 1.5 | 400 | OK: 400 «debe ser mayor que cero»; 400 «tiene un tipo o formato inválido» | `etapa2-api.txt` (E2-19, E2-38) | 0 |
+| E2-15 | RF 03 niveles del curso | POST con nivel `Basico` | 400 | OK | `etapa2-api.txt` (E2-20) | 0 |
+| E2-16 | RF 03 registrar | POST con `etapa2-curso-valido.json` | 201, `Location`, `activo` true | OK: 201, `Location: …/api/admin/cursos/31`, `activo: true` | `etapa2-api.txt` (E2-21) | 0 |
+| E2-17 | RF 03 consultar | GET /api/admin/cursos/31; /999999 | 200; 404 | OK: 200; 404 | `etapa2-api.txt` (E2-22, E2-31) | 0 |
+| E2-18 | RF 03 actualizar | PUT /api/admin/cursos/31 con `etapa2-curso-actualizado.json`; id 999999; duracionHoras 0 | 200 (activo no cambia); 404; 400 | OK: 200 con datos nuevos y `activo: true`; 404; 400 | `etapa2-api.txt` (E2-23 a E2-25) | 0 |
+| E2-19 | RF 03 desactivar | PATCH /api/admin/cursos/31/desactivar dos veces; id 999999 | 200 `activo` false (idempotente); 404 | OK: 200 y 200 con `activo: false`; 404 | `etapa2-api.txt` (E2-26 a E2-28) | 0 |
+| E2-20 | RF 04 / RF 03 curso desactivado | GET /api/cursos y GET /api/admin/cursos tras desactivar | El 31 no está en el catálogo y sí en administración | OK: catálogo 28 (sin el 31); administración 31 con 3 inactivos (29, 30, 31) | `etapa2-api.txt` (E2-29, E2-30) | 0 |
+| E2-21 | «Un correo electrónico solamente podrá pertenecer a un estudiante» (concurrencia) | 10 POST simultáneos con el mismo correo; y un POST mientras una transacción de psql tiene el mismo correo sin confirmar | Una sola alta; el resto 409 | OK: 1×201 y 9×409; el POST concurrente con psql recibió 409 tras la violación de `uq_estudiante_correo` en la BD | `etapa2-api.txt` (E2-35, E2-40) | 0 |
+| E2-22 | 8.2 CORS | Preflight OPTIONS /api/cursos con `Origin: http://localhost:5500`; `Origin: http://otro.test`; POST con `Content-Type` desde `http://127.0.0.1:5500`; DELETE | Allow-Origin solo para los orígenes de `RUTAIA_CORS_ORIGINS` | OK: 200 con `Access-Control-Allow-Origin: http://localhost:5500`; 403 sin la cabecera; 200 con `Allow-Headers: Content-Type`; DELETE 403 | `etapa2-api.txt` (E2-32, E2-33, E2-36, E2-37) | 0 |
+| E2-23 | 8.2 manejo global de errores | GET /api/no-existe; DELETE /api/estudiantes/1 | 404 y 405 con el cuerpo de C6 | OK | `etapa2-api.txt` (E2-39) | 0 |
+| E2-24 | 8.2 Swagger / rúbrica | Abrir http://localhost:8080/swagger-ui.html | Título «RutaIA API», 3 etiquetas, 9 endpoints con descripción, ejemplos y códigos | OK: 9 `operationId`, etiquetas «Estudiantes», «Catálogo de cursos», «Administración de cursos» | `etapa2-swagger-endpoints.png`, `etapa2-swagger-e01-registrar-estudiante.png`, `etapa2-swagger-e05-catalogo.png`, `etapa2-swagger-e06-registrar-curso.png`, `etapa2-swagger-e10-desactivar-curso.png` | 0 |
+| E2-25 | Sin secretos en el repositorio | `git grep` de la contraseña del `.env` y de `sk-or-v1-` sobre los archivos versionados | Sin coincidencias de valores reales | OK: la contraseña no aparece; `sk-or-v1-` solo como texto explicativo en la documentación | — | 0 |
+
+Total de solicitudes a OpenRouter en la Etapa 2: **0**.
+
+El error 500 genérico (mensaje fijo, traza solo en el log) está implementado, pero no se provocó en estas pruebas para no detener PostgreSQL.
+
+Al terminar se recargaron `01_esquema.sql` y `02_datos_semilla.sql` (comandos de C12): 10 estudiantes (ids 1..10) y 30 cursos (28 activos y 2 inactivos, ids 1..30).
