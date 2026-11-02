@@ -26,3 +26,33 @@ Solicitudes realmente enviadas (detalle en `docs/evidencias/etapa0-openrouter.tx
 - 1 de embeddings: OK.
 - 7 de chat: todas 429 «google/gemma-4-31b-it:free is temporarily rate-limited upstream» (proveedor gratuito saturado; no es la cuota de la cuenta). E0-08 queda pendiente de repetir en otro horario; si persiste, el equipo decide si cambia el modelo del contrato (C10).
 - Total con la clave válida: 8 de las 50 diarias.
+
+## Etapa 1 — Base de datos relacional
+
+Fecha: 2026-11-02 · Máquina: Windows 11 Home 10.0.26200 · PostgreSQL 17.11 (contenedor `postgres`). Detalle en `docs/base-de-datos.md`.
+
+| ID | Requisito | Pasos | Esperado | Obtenido | Evidencia | Solicitudes a OpenRouter |
+|---|---|---|---|---|---|---|
+| E1-01 | Script SQL (8.3) | Comandos de C12 con `01_esquema.sql` y `02_datos_semilla.sql`, dos pasadas seguidas | Código de salida 0 en las cuatro ejecuciones | OK: 0, 0, 0, 0; tras la segunda pasada 10 estudiantes y 30 cursos (máx. id 30) | `docs/evidencias/etapa1-ejecucion-manual.txt` | 0 |
+| E1-02 | Instalación limpia | `docker compose stop postgres`, `docker compose rm -f postgres`, `docker volume rm rutaia_pgdata`, `docker compose up -d postgres` | `postgres` healthy; el log muestra `running …01_esquema.sql` y `…02_datos_semilla.sql`; los volúmenes de Qdrant y n8n siguen | OK: healthy en ~5 s; `INSERT 0 10` e `INSERT 0 30`; `rutaia_qdrant_storage` y `rutaia_n8n_data` intactos | `docs/evidencias/etapa1-instalacion-limpia.txt` | 0 |
+| E1-03 | Datos de prueba (9) | `pruebas/bd/etapa1-conteos.sql` | 10 estudiantes; 28 activos y 2 inactivos; 7 categorías con activos (≥ 3 cada una); 3 niveles; IDs 1..10 y 1..30 | OK: 10; 28/2; 7 categorías (3 a 6 activos); Básico 10, Intermedio 13, Avanzado 7; IDs 1..10 y 1..30 | `docs/evidencias/etapa1-semilla.txt` | 0 |
+| E1-04 | Descripciones aptas para búsqueda semántica | Contar palabras por descripción | Ninguna < 90 ni > 150 | OK: mínimo 130, máximo 146 | `docs/evidencias/etapa1-semilla.txt` | 0 |
+| E1-05 | Nombres únicos | Consulta «nombre contenido en otro nombre» (`strpos(lower(b.nombre), lower(a.nombre)) > 0`) y nombres de < 4 palabras | 0 filas en ambas | OK: 0 y 0 | `docs/evidencias/etapa1-semilla.txt` | 0 |
+| E1-06 | Codificación UTF8 | `SELECT count(*) FROM curso WHERE nivel = 'Básico'` | > 0 | OK: 10 | `docs/evidencias/etapa1-semilla.txt` | 0 |
+| E1-07 | Catálogo sin temas ajenos | Buscar cocina/gastronomía/receta en nombres y descripciones | 0 filas | OK: 0 | `docs/evidencias/etapa1-semilla.txt` | 0 |
+| E1-08 | RF 01 / correo único | `BEGIN`; insertar `valeria.gomez@rutaia.test`; `ROLLBACK` | Falla `uq_estudiante_correo` | OK | `docs/evidencias/etapa1-restricciones.txt` (R01) | 0 |
+| E1-09 | RF 01 / correo normalizado | Insertar `Prueba.Mayusculas@RutaIA.test` | Falla `ck_estudiante_correo_normalizado` | OK | `docs/evidencias/etapa1-restricciones.txt` (R02) | 0 |
+| E1-10 | RF 01 y RF 03 / niveles | Nivel `Experto` en estudiante y en curso | Fallan `ck_estudiante_nivel` y `ck_curso_nivel` | OK | `docs/evidencias/etapa1-restricciones.txt` (R03, R04) | 0 |
+| E1-11 | Duración mayor que cero | `duracion_horas` 0 | Falla `ck_curso_duracion_positiva` | OK | `docs/evidencias/etapa1-restricciones.txt` (R05) | 0 |
+| E1-12 | Cursos sin nombre o descripción | Nombre `'  '`; descripción `''` | Fallan `ck_curso_nombre_no_vacio` y `ck_curso_descripcion_no_vacia` | OK | `docs/evidencias/etapa1-restricciones.txt` (R06, R07) | 0 |
+| E1-13 | Consulta de un estudiante existente | Consulta con `estudiante_id` 999999 | Falla `fk_consulta_estudiante` | OK | `docs/evidencias/etapa1-restricciones.txt` (R08) | 0 |
+| E1-14 | RF 07 / pregunta y estados | Pregunta `'   '`; estado `Cerrada` | Fallan `ck_consulta_pregunta_no_vacia` y `ck_consulta_estado` | OK | `docs/evidencias/etapa1-restricciones.txt` (R09, R10) | 0 |
+| E1-15 | RF 14 / fuentes y similitudes | Similitud 1.5; mismo curso dos veces como fuente | Fallan `ck_fuente_similitud` y `uq_fuente_recomendacion_curso` | OK | `docs/evidencias/etapa1-restricciones.txt` (R11, R12) | 0 |
+| E1-16 | RF 17 / puntuación 1 a 5 | Puntuación 0 y 6 | Falla `ck_calificacion_puntuacion` en ambos | OK | `docs/evidencias/etapa1-restricciones.txt` (R13, R14) | 0 |
+| E1-17 | RF 17 / una calificación por recomendación | Segunda calificación de la misma recomendación | Falla `uq_calificacion_recomendacion` | OK | `docs/evidencias/etapa1-restricciones.txt` (R15) | 0 |
+| E1-18 | ROLLBACK sin residuos | Contar filas tras los 15 casos | 0 consultas, recomendaciones, fuentes y calificaciones; 10 estudiantes y 30 cursos | OK | `docs/evidencias/etapa1-restricciones.txt` (Control) | 0 |
+| E1-19 | Diagrama entidad relación (rúbrica) | Revisar `docs/base-de-datos.md` | `erDiagram` en Mermaid con las 6 tablas y 5 relaciones | OK | `docs/base-de-datos.md` | 0 |
+
+Total de solicitudes a OpenRouter en la Etapa 1: **0**.
+
+Después de E1-08…E1-18 se recargaron `01` y `02` (E1-01) porque los `INSERT` fallidos consumen valores de las secuencias IDENTITY.

@@ -1,0 +1,166 @@
+# Etapa 1 - Restricciones (cada caso en BEGIN ... ROLLBACK) (2026-11-02 16:50 -0600)
+# $ docker compose exec -T postgres psql -U rutaia_app -d rutaia < pruebas/bd/etapa1-restricciones.sql
+
+### R01 correo duplicado -> uq_estudiante_correo
+BEGIN;
+BEGIN
+INSERT INTO estudiante (nombre_completo, correo, nivel_experiencia, area_interes)
+VALUES ('Prueba Duplicado', 'valeria.gomez@rutaia.test', 'Principiante', 'Pruebas');
+ROLLBACK;
+ROLLBACK
+ERROR:  duplicate key value violates unique constraint "uq_estudiante_correo"
+DETAIL:  Key (correo)=(valeria.gomez@rutaia.test) already exists.
+### R02 correo con mayúsculas -> ck_estudiante_correo_normalizado
+BEGIN;
+BEGIN
+INSERT INTO estudiante (nombre_completo, correo, nivel_experiencia, area_interes)
+VALUES ('Prueba Mayúsculas', 'Prueba.Mayusculas@RutaIA.test', 'Principiante', 'Pruebas');
+ERROR:  new row for relation "estudiante" violates check constraint "ck_estudiante_correo_normalizado"
+DETAIL:  Failing row contains (12, Prueba Mayúsculas, Prueba.Mayusculas@RutaIA.test, Principiante, Pruebas, 2026-11-02 22:50:29.812772).
+ROLLBACK;
+ROLLBACK
+### R03 nivel Experto (estudiante) -> ck_estudiante_nivel
+BEGIN;
+BEGIN
+INSERT INTO estudiante (nombre_completo, correo, nivel_experiencia, area_interes)
+VALUES ('Prueba Nivel', 'prueba.nivel@rutaia.test', 'Experto', 'Pruebas');
+ROLLBACK;
+ERROR:  new row for relation "estudiante" violates check constraint "ck_estudiante_nivel"
+DETAIL:  Failing row contains (13, Prueba Nivel, prueba.nivel@rutaia.test, Experto, Pruebas, 2026-11-02 22:50:29.813656).
+ROLLBACK
+### R04 nivel Experto (curso) -> ck_curso_nivel
+BEGIN;
+BEGIN
+INSERT INTO curso (nombre, descripcion, categoria, nivel, duracion_horas)
+VALUES ('Curso de prueba nivel', 'Descripción de prueba', 'Programación', 'Experto', 10);
+ROLLBACK;
+ERROR:  new row for relation "curso" violates check constraint "ck_curso_nivel"
+DETAIL:  Failing row contains (31, Curso de prueba nivel, Descripción de prueba, Programación, Experto, 10, t).
+ROLLBACK
+### R05 duracion_horas 0 -> ck_curso_duracion_positiva
+BEGIN;
+BEGIN
+INSERT INTO curso (nombre, descripcion, categoria, nivel, duracion_horas)
+VALUES ('Curso de prueba duración', 'Descripción de prueba', 'Programación', 'Básico', 0);
+ERROR:  new row for relation "curso" violates check constraint "ck_curso_duracion_positiva"
+DETAIL:  Failing row contains (32, Curso de prueba duración, Descripción de prueba, Programación, Básico, 0, t).
+ROLLBACK;
+ROLLBACK
+### R06 nombre de curso solo espacios -> ck_curso_nombre_no_vacio
+BEGIN;
+BEGIN
+INSERT INTO curso (nombre, descripcion, categoria, nivel, duracion_horas)
+VALUES ('  ', 'Descripción de prueba', 'Programación', 'Básico', 10);
+ERROR:  new row for relation "curso" violates check constraint "ck_curso_nombre_no_vacio"
+DETAIL:  Failing row contains (33,   , Descripción de prueba, Programación, Básico, 10, t).
+ROLLBACK;
+ROLLBACK
+### R07 descripción vacía -> ck_curso_descripcion_no_vacia
+BEGIN;
+BEGIN
+INSERT INTO curso (nombre, descripcion, categoria, nivel, duracion_horas)
+VALUES ('Curso de prueba descripción', '', 'Programación', 'Básico', 10);
+ROLLBACK;
+ERROR:  new row for relation "curso" violates check constraint "ck_curso_descripcion_no_vacia"
+DETAIL:  Failing row contains (34, Curso de prueba descripción, , Programación, Básico, 10, t).
+ROLLBACK
+### R08 consulta con estudiante_id inexistente -> fk_consulta_estudiante
+BEGIN;
+BEGIN
+INSERT INTO consulta (estudiante_id, pregunta) VALUES (999999, 'Quiero aprender a crear páginas web.');
+ERROR:  insert or update on table "consulta" violates foreign key constraint "fk_consulta_estudiante"
+DETAIL:  Key (estudiante_id)=(999999) is not present in table "estudiante".
+ROLLBACK;
+ROLLBACK
+### R09 pregunta solo espacios -> ck_consulta_pregunta_no_vacia
+BEGIN;
+BEGIN
+INSERT INTO consulta (estudiante_id, pregunta) VALUES (1, '   ');
+ERROR:  new row for relation "consulta" violates check constraint "ck_consulta_pregunta_no_vacia"
+DETAIL:  Failing row contains (2, 1,    , 2026-11-02 22:50:29.819882, Pendiente, null).
+ROLLBACK;
+ROLLBACK
+### R10 estado Cerrada -> ck_consulta_estado
+BEGIN;
+BEGIN
+INSERT INTO consulta (estudiante_id, pregunta, estado) VALUES (1, 'Quiero aprender a crear páginas web.', 'Cerrada');
+ERROR:  new row for relation "consulta" violates check constraint "ck_consulta_estado"
+DETAIL:  Failing row contains (3, 1, Quiero aprender a crear páginas web., 2026-11-02 22:50:29.820514, Cerrada, null).
+ROLLBACK;
+ROLLBACK
+### R11 similitud 1.5 -> ck_fuente_similitud
+BEGIN;
+BEGIN
+INSERT INTO consulta (estudiante_id, pregunta, estado) VALUES (1, 'Quiero aprender a crear páginas web.', 'Respondida');
+INSERT 0 1
+INSERT INTO recomendacion (consulta_id, respuesta) SELECT max(id), 'Respuesta de prueba' FROM consulta;
+INSERT 0 1
+INSERT INTO recomendacion_fuente (recomendacion_id, curso_id, similitud) SELECT max(id), 1, 1.5 FROM recomendacion;
+ROLLBACK;
+ROLLBACK
+ERROR:  new row for relation "recomendacion_fuente" violates check constraint "ck_fuente_similitud"
+DETAIL:  Failing row contains (1, 1, 1, 1.5).
+### R12 fuente duplicada -> uq_fuente_recomendacion_curso
+BEGIN;
+BEGIN
+INSERT INTO consulta (estudiante_id, pregunta, estado) VALUES (1, 'Quiero aprender a crear páginas web.', 'Respondida');
+INSERT 0 1
+INSERT INTO recomendacion (consulta_id, respuesta) SELECT max(id), 'Respuesta de prueba' FROM consulta;
+INSERT 0 1
+INSERT INTO recomendacion_fuente (recomendacion_id, curso_id, similitud) SELECT max(id), 1, 0.82 FROM recomendacion;
+INSERT 0 1
+INSERT INTO recomendacion_fuente (recomendacion_id, curso_id, similitud) SELECT max(id), 1, 0.75 FROM recomendacion;
+ERROR:  duplicate key value violates unique constraint "uq_fuente_recomendacion_curso"
+DETAIL:  Key (recomendacion_id, curso_id)=(2, 1) already exists.
+ROLLBACK;
+ROLLBACK
+### R13 puntuación 0 -> ck_calificacion_puntuacion
+BEGIN;
+BEGIN
+INSERT INTO consulta (estudiante_id, pregunta, estado) VALUES (1, 'Quiero aprender a crear páginas web.', 'Respondida');
+INSERT 0 1
+INSERT INTO recomendacion (consulta_id, respuesta) SELECT max(id), 'Respuesta de prueba' FROM consulta;
+INSERT 0 1
+INSERT INTO calificacion (recomendacion_id, puntuacion) SELECT max(id), 0 FROM recomendacion;
+ERROR:  new row for relation "calificacion" violates check constraint "ck_calificacion_puntuacion"
+DETAIL:  Failing row contains (1, 3, 0, null, 2026-11-02 22:50:29.827957).
+ROLLBACK;
+ROLLBACK
+### R14 puntuación 6 -> ck_calificacion_puntuacion
+BEGIN;
+BEGIN
+INSERT INTO consulta (estudiante_id, pregunta, estado) VALUES (1, 'Quiero aprender a crear páginas web.', 'Respondida');
+INSERT 0 1
+INSERT INTO recomendacion (consulta_id, respuesta) SELECT max(id), 'Respuesta de prueba' FROM consulta;
+INSERT 0 1
+INSERT INTO calificacion (recomendacion_id, puntuacion) SELECT max(id), 6 FROM recomendacion;
+ROLLBACK;
+ROLLBACK
+ERROR:  new row for relation "calificacion" violates check constraint "ck_calificacion_puntuacion"
+DETAIL:  Failing row contains (2, 4, 6, null, 2026-11-02 22:50:29.830627).
+### R15 segunda calificación de la misma recomendación -> uq_calificacion_recomendacion
+BEGIN;
+BEGIN
+INSERT INTO consulta (estudiante_id, pregunta, estado) VALUES (1, 'Quiero aprender a crear páginas web.', 'Respondida');
+INSERT 0 1
+INSERT INTO recomendacion (consulta_id, respuesta) SELECT max(id), 'Respuesta de prueba' FROM consulta;
+INSERT 0 1
+INSERT INTO calificacion (recomendacion_id, puntuacion, comentario) SELECT max(id), 5, 'Muy útil' FROM recomendacion;
+INSERT 0 1
+INSERT INTO calificacion (recomendacion_id, puntuacion) SELECT max(id), 4 FROM recomendacion;
+ROLLBACK;
+ROLLBACK
+### Control: nada quedó guardado (0, 0, 0, 0 y 10, 30)
+SELECT (SELECT count(*) FROM consulta) AS consultas,
+       (SELECT count(*) FROM recomendacion) AS recomendaciones,
+       (SELECT count(*) FROM recomendacion_fuente) AS fuentes,
+       (SELECT count(*) FROM calificacion) AS calificaciones,
+       (SELECT count(*) FROM estudiante) AS estudiantes,
+       (SELECT count(*) FROM curso) AS cursos;
+ERROR:  duplicate key value violates unique constraint "uq_calificacion_recomendacion"
+DETAIL:  Key (recomendacion_id)=(5) already exists.
+ consultas | recomendaciones | fuentes | calificaciones | estudiantes | cursos 
+-----------+-----------------+---------+----------------+-------------+--------
+         0 |               0 |       0 |              0 |          10 |     30
+(1 row)
+
