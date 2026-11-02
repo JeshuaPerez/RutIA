@@ -122,3 +122,73 @@ En PowerShell, el cuerpo del scroll va en un archivo:
 curl.exe -s http://127.0.0.1:6333/collections/rutaia_cursos
 curl.exe -s -X POST http://127.0.0.1:6333/collections/rutaia_cursos/points/scroll -H "Content-Type: application/json" --data-binary "@pruebas/n8n/etapa3-qdrant-scroll.json"
 ```
+
+## Calibración de umbral
+
+Flujo auxiliar **«RutaIA - Calibración de umbral»** (W-3, `n8n/rutaia-calibracion-umbral.json`, ID `RutaIACalibracion`). Vectoriza una lista de preguntas y devuelve los 10 cursos activos más parecidos a cada una, con su score y **sin umbral**. Sirve para medir la escala de los scores y elegir el umbral del flujo RAG (Etapa 4, `docs/calibracion-umbral.md`). No forma parte de la aplicación: lo ejecuta el equipo, nunca el frontend ni Spring Boot.
+
+- Entrada: `POST http://127.0.0.1:5678/webhook/rutaia-calibrar-umbral` con `{"preguntas":["…"]}` (de 1 a 20 textos no vacíos).
+- 200: `{"modelo":"nvidia/nemotron-3-embed-1b:free","coleccion":"rutaia_cursos","resultados":[{"pregunta":"…","puntos":[{"cursoId":1,"nombre":"…","categoria":"…","score":0.6421}]}]}`, con los 10 mejores puntos por pregunta (filtro `activo = true`), el score redondeado a 4 decimales y en el orden de las preguntas.
+- 500: `{"error":"Falló el paso «…»: …"}`.
+
+### Diagrama de nodos
+
+```mermaid
+flowchart LR
+  WH[Webhook POST rutaia-calibrar-umbral] --> CFG[Configuración] --> VP[Validar preguntas]
+  VP --> LC[Leer colección<br/>GET /collections/rutaia_cursos] --> CC[Comprobar colección<br/>existe, 2048 y Cosine, con puntos]
+  CC --> EMB[Generar embeddings<br/>POST openRouterUrl/embeddings<br/>input_type query] --> VE[Validar embeddings<br/>un ítem por pregunta]
+  VE --> BQ[Buscar en Qdrant<br/>POST /points/query<br/>limit 10, sin umbral] --> AR[Armar respuesta] --> R200[Responder 200]
+  VP & LC & CC & EMB & VE & BQ & AR -. error .-> AE[Armar error] --> R500[Responder error 500]
+```
+
+| Nodo | Qué hace |
+|---|---|
+| Webhook | Disparador (`responseMode: responseNode`). No tiene Manual Trigger porque necesita el cuerpo con las preguntas. |
+| Configuración | Los mismos campos que la indexación (C8); W-3 no usa `umbralSimilitud` ni `limiteResultados`. |
+| Validar preguntas | `preguntas` es una lista de 1 a 20 textos no vacíos; aplica trim a cada uno (C9: sin prefijos). |
+| Leer colección / Comprobar colección | `GET /collections/rutaia_cursos`: 404 → falla pidiendo ejecutar la indexación; exige `size` 2048, `distance` Cosine y al menos un punto. Arma el cuerpo de embeddings. |
+| Generar embeddings | **Una sola** solicitud con todas las preguntas, `"input_type":"query"` y `"encoding_format":"float"`, con la credencial «RutaIA OpenRouter». |
+| Validar embeddings | HTTP 200 y sin `error` (con la pista de 429/404/402); un vector por pregunta, ordenados por `index`, cada uno con 2048 números finitos. Emite un ítem por pregunta con el cuerpo de calibración de C9. |
+| Buscar en Qdrant | Un `POST /collections/rutaia_cursos/points/query` por ítem: `{"query":[…],"filter":{"must":[{"key":"activo","match":{"value":true}}]},"limit":10,"with_payload":true,"with_vector":false}`. |
+| Armar respuesta | Comprueba cada búsqueda (HTTP 200 y `result.points`), falla si llega un punto inactivo y arma la respuesta sin vectores. |
+| Armar error / Responder error | Igual que en la indexación. |
+
+Todo lo que no gasta cuota (validar la entrada y la colección) va antes de OpenRouter. Cada ejecución gasta **1** solicitud, sin importar cuántas preguntas lleve.
+
+### Cómo importarlo, publicarlo y exportarlo
+
+Igual que la indexación, con su archivo e ID:
+
+```bash
+docker compose exec n8n n8n import:workflow --input=/home/node/flujos/rutaia-calibracion-umbral.json
+docker compose exec n8n n8n list:workflow
+docker compose exec n8n n8n publish:workflow --id=RutaIACalibracion
+docker compose restart n8n
+```
+
+Debe aparecer `RutaIACalibracion|RutaIA - Calibración de umbral`. En otra máquina, elige tu credencial «RutaIA OpenRouter» en el nodo **Generar embeddings** antes de publicar. Para versionar la versión publicada:
+
+```bash
+docker compose exec n8n n8n export:workflow --id=RutaIACalibracion --published --output=/home/node/flujos/rutaia-calibracion-umbral.json --pretty
+```
+
+y quita el bloque `"shared"` como en la indexación.
+
+### Cómo ejecutarlo
+
+Requisitos: contenedores arriba y la colección indexada (la API no hace falta). Las 8 consultas de prueba están en `pruebas/n8n/etapa4-calibracion-preguntas.json`.
+
+PowerShell:
+
+```powershell
+curl.exe -s -X POST http://127.0.0.1:5678/webhook/rutaia-calibrar-umbral -H "Content-Type: application/json; charset=utf-8" --data-binary "@pruebas/n8n/etapa4-calibracion-preguntas.json"
+```
+
+bash:
+
+```bash
+curl -s -X POST http://127.0.0.1:5678/webhook/rutaia-calibrar-umbral -H "Content-Type: application/json; charset=utf-8" --data-binary "@pruebas/n8n/etapa4-calibracion-preguntas.json"
+```
+
+Re-ejecútalo (y revisa `docs/calibracion-umbral.md`) si cambian el modelo de embeddings, el texto que se indexa o las descripciones de los cursos.

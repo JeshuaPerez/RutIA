@@ -118,3 +118,22 @@ Fecha: 2026-11-02 · Máquina: Windows 11 Home 10.0.26200 · n8n 2.45.7 y Qdrant
 Total de solicitudes a OpenRouter en la Etapa 3: **2** (E3-03 y E3-04; presupuesto ≤ 3). Cada ejecución del flujo envía los 30 textos en una sola solicitud.
 
 No se probaron, para no gastar cuota ni alterar la colección: la respuesta 500 ante un error de OpenRouter (429/404/402) y ante una colección existente con otra configuración. La lógica de esos nodos Code se probó fuera de n8n con entradas simuladas (429, 404, vector con un `null`, 29 vectores para 30 cursos, colección de `size` 768).
+
+## Etapa 4 — Calibración del umbral de similitud
+
+Fecha: 2026-11-02 · Máquina: Windows 11 Home 10.0.26200 · n8n 2.45.7 y Qdrant v1.20.0 (contenedores) · colección `rutaia_cursos` de la Etapa 3 (30 puntos: 28 activos, 29 y 30 inactivos). Flujo W-3 `n8n/rutaia-calibracion-umbral.json` (ID `RutaIACalibracion`), documentado en `docs/n8n.md`. Comandos con `curl` desde Git Bash; en PowerShell cambia `curl` por `curl.exe`. Salida completa en `docs/evidencias/etapa4-calibracion.txt`, `docs/calibracion-resultados.json` y `docs/calibracion-umbral.md`.
+
+| ID | Requisito | Pasos | Esperado | Obtenido | Evidencia | Solicitudes a OpenRouter |
+|---|---|---|---|---|---|---|
+| E4-01 | Rúbrica: JSON de los flujos | `import:workflow`, `list:workflow`, `publish:workflow --id=RutaIACalibracion` y `docker compose restart n8n` | El flujo aparece y atiende `/webhook/rutaia-calibrar-umbral` | OK: `RutaIACalibracion\|RutaIA - Calibración de umbral`; el webhook de producción responde | `etapa4-calibracion.txt` (Importación) | 0 |
+| E4-02 | W-3 valida la entrada antes de gastar cuota | POST con `{"preguntas":[]}`, `{}` y `{"preguntas":["  "]}` | 500 con mensaje; sin llamar a OpenRouter | OK: 500 «… lista no vacía de textos» (dos) y «La pregunta 0 está vacía o no es texto»; nodos hasta «Validar preguntas» → «Armar error» | `etapa4-calibracion.txt` (Ejecuciones 4 a 6) | 0 |
+| E4-03 | W-3 comprueba la colección antes de gastar cuota | `docker compose stop qdrant`; POST con una pregunta; `docker compose start qdrant` | 500 con mensaje; «Generar embeddings» no se ejecuta | OK: 500 `{"error":"Falló el paso «Leer colección»: getaddrinfo EAI_AGAIN qdrant"}` | `etapa4-calibracion.txt` (Ejecución 7) | 0 |
+| E4-04 | 8.4 consulta semántica y recuperación del payload; C9 calibración | POST con `pruebas/n8n/etapa4-calibracion-preguntas.json` (7 temáticas + cocina) | 200; 8 resultados con 10 puntos cada uno; sin vectores; sin cursos inactivos | OK: 200; 8 × 10 puntos con `cursoId`, `nombre`, `categoria` y `score`; 0 `vector`; 29 y 30 no aparecen | `docs/calibracion-resultados.json` | 1 |
+| E4-05 | RF 11 establecer y justificar un umbral | Tablas por consulta, S_cocina, S_pert y candidatos en `docs/calibracion-umbral.md` | Intervalo (S_cocina, S_pert) no vacío; umbral de 2 decimales con margen ≥ 0,02 | OK: S_cocina 0,2515; S_pert 0,3750 (C1, curso 3); candidatos 0,28–0,35; elegido **0,34** (deja 1 no pertinente frente a 3 del punto medio 0,31); márgenes 0,0885 y 0,0350 | `docs/calibracion-umbral.md` | 0 |
+| E4-06 | RF 11 informar cuando ningún curso supere el umbral | Aplicar 0,34 a la consulta de cocina | 0 cursos | OK: máximo 0,2515 < 0,34 → 0 fuentes | `docs/calibracion-umbral.md` (Resultado esperado) | 0 |
+| E4-07 | RF 10 recuperar entre tres y cinco cursos; RF 11 no enviar información irrelevante | Aplicar 0,34 y `limit` 5 a las 7 consultas temáticas | Cada una con ≥ 1 pertinente (ideal 3–5); informar las que queden con < 3 | OK: 4, 4, 4, 3, 5, 3 y 3 fuentes; 3 a 5 pertinentes en todas; ninguna con < 3; 1 no pertinente en total (curso 4 en C1) | `docs/calibracion-umbral.md` (Resultado esperado) | 0 |
+| E4-08 | Claves fuera del código y del repositorio | `export:workflow --id=RutaIACalibracion --published --pretty`; `grep -ciE "@\|outlook\|gmail\|sk-or-v1\|bearer "` | 0 coincidencias; credencial solo por referencia | OK: 0; se quitó el bloque `shared` | `etapa4-calibracion.txt` (JSON exportado) | 0 |
+
+Total de solicitudes a OpenRouter en la Etapa 4: **1** (E4-04; presupuesto ≤ 2). Las 8 preguntas van en una sola solicitud de embeddings.
+
+No se probó contra n8n, para no gastar cuota ni tocar la colección, la respuesta 500 ante un error de OpenRouter (429/404/402) ni ante una colección inexistente o con otra configuración. La lógica de esos nodos Code se probó fuera de n8n con entradas simuladas (ver `etapa4-calibracion.txt`).

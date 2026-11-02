@@ -1,0 +1,526 @@
+{
+  "modelo": "nvidia/nemotron-3-embed-1b:free",
+  "coleccion": "rutaia_cursos",
+  "resultados": [
+    {
+      "pregunta": "Quiero aprender a crear páginas web.",
+      "puntos": [
+        {
+          "cursoId": 1,
+          "nombre": "Fundamentos de HTML y CSS para páginas web",
+          "categoria": "Desarrollo web",
+          "score": 0.593
+        },
+        {
+          "cursoId": 2,
+          "nombre": "JavaScript y manipulación del DOM",
+          "categoria": "Desarrollo web",
+          "score": 0.3843
+        },
+        {
+          "cursoId": 3,
+          "nombre": "Diseño web responsive con Flexbox y Grid",
+          "categoria": "Desarrollo web",
+          "score": 0.375
+        },
+        {
+          "cursoId": 4,
+          "nombre": "Seguridad de aplicaciones web con OWASP Top 10",
+          "categoria": "Desarrollo web",
+          "score": 0.3644
+        },
+        {
+          "cursoId": 27,
+          "nombre": "Pruebas de seguridad y hacking ético web",
+          "categoria": "Herramientas tecnológicas",
+          "score": 0.3346
+        },
+        {
+          "cursoId": 24,
+          "nombre": "Contenedores con Docker para desplegar aplicaciones",
+          "categoria": "Herramientas tecnológicas",
+          "score": 0.3011
+        },
+        {
+          "cursoId": 5,
+          "nombre": "Programación orientada a objetos con Java",
+          "categoria": "Programación",
+          "score": 0.2783
+        },
+        {
+          "cursoId": 28,
+          "nombre": "Linux y línea de comandos para desarrolladores",
+          "categoria": "Herramientas tecnológicas",
+          "score": 0.2773
+        },
+        {
+          "cursoId": 23,
+          "nombre": "Control de versiones con Git y GitHub",
+          "categoria": "Herramientas tecnológicas",
+          "score": 0.2698
+        },
+        {
+          "cursoId": 19,
+          "nombre": "Scripts de automatización con Python",
+          "categoria": "Automatización",
+          "score": 0.2602
+        }
+      ]
+    },
+    {
+      "pregunta": "Necesito aprender Java para trabajar con Spring Boot.",
+      "puntos": [
+        {
+          "cursoId": 5,
+          "nombre": "Programación orientada a objetos con Java",
+          "categoria": "Programación",
+          "score": 0.6286
+        },
+        {
+          "cursoId": 6,
+          "nombre": "Desarrollo de APIs REST con Spring Boot",
+          "categoria": "Programación",
+          "score": 0.5746
+        },
+        {
+          "cursoId": 7,
+          "nombre": "Persistencia de datos con Spring Data JPA",
+          "categoria": "Programación",
+          "score": 0.5112
+        },
+        {
+          "cursoId": 8,
+          "nombre": "Autenticación y autorización segura con Spring Security",
+          "categoria": "Programación",
+          "score": 0.3974
+        },
+        {
+          "cursoId": 1,
+          "nombre": "Fundamentos de HTML y CSS para páginas web",
+          "categoria": "Desarrollo web",
+          "score": 0.2766
+        },
+        {
+          "cursoId": 2,
+          "nombre": "JavaScript y manipulación del DOM",
+          "categoria": "Desarrollo web",
+          "score": 0.273
+        },
+        {
+          "cursoId": 28,
+          "nombre": "Linux y línea de comandos para desarrolladores",
+          "categoria": "Herramientas tecnológicas",
+          "score": 0.2699
+        },
+        {
+          "cursoId": 12,
+          "nombre": "Fundamentos de inteligencia artificial para principiantes",
+          "categoria": "Inteligencia artificial",
+          "score": 0.2686
+        },
+        {
+          "cursoId": 17,
+          "nombre": "Automatización de flujos de trabajo con n8n",
+          "categoria": "Automatización",
+          "score": 0.2404
+        },
+        {
+          "cursoId": 24,
+          "nombre": "Contenedores con Docker para desplegar aplicaciones",
+          "categoria": "Herramientas tecnológicas",
+          "score": 0.2352
+        }
+      ]
+    },
+    {
+      "pregunta": "Me interesa analizar datos y construir dashboards.",
+      "puntos": [
+        {
+          "cursoId": 21,
+          "nombre": "Visualización de datos y dashboards con Power BI",
+          "categoria": "Análisis de datos",
+          "score": 0.5322
+        },
+        {
+          "cursoId": 20,
+          "nombre": "Análisis de datos con Python y pandas",
+          "categoria": "Análisis de datos",
+          "score": 0.4445
+        },
+        {
+          "cursoId": 9,
+          "nombre": "Consultas SQL para análisis de datos",
+          "categoria": "Bases de datos",
+          "score": 0.4344
+        },
+        {
+          "cursoId": 22,
+          "nombre": "Estadística aplicada al análisis de datos",
+          "categoria": "Análisis de datos",
+          "score": 0.3856
+        },
+        {
+          "cursoId": 24,
+          "nombre": "Contenedores con Docker para desplegar aplicaciones",
+          "categoria": "Herramientas tecnológicas",
+          "score": 0.2128
+        },
+        {
+          "cursoId": 13,
+          "nombre": "Machine learning con Python y scikit-learn",
+          "categoria": "Inteligencia artificial",
+          "score": 0.2128
+        },
+        {
+          "cursoId": 2,
+          "nombre": "JavaScript y manipulación del DOM",
+          "categoria": "Desarrollo web",
+          "score": 0.2026
+        },
+        {
+          "cursoId": 10,
+          "nombre": "Diseño de bases de datos relacionales con PostgreSQL",
+          "categoria": "Bases de datos",
+          "score": 0.2012
+        },
+        {
+          "cursoId": 1,
+          "nombre": "Fundamentos de HTML y CSS para páginas web",
+          "categoria": "Desarrollo web",
+          "score": 0.1966
+        },
+        {
+          "cursoId": 7,
+          "nombre": "Persistencia de datos con Spring Data JPA",
+          "categoria": "Programación",
+          "score": 0.1918
+        }
+      ]
+    },
+    {
+      "pregunta": "Quiero automatizar procesos empresariales.",
+      "puntos": [
+        {
+          "cursoId": 17,
+          "nombre": "Automatización de flujos de trabajo con n8n",
+          "categoria": "Automatización",
+          "score": 0.5534
+        },
+        {
+          "cursoId": 18,
+          "nombre": "Automatización robótica de procesos administrativos",
+          "categoria": "Automatización",
+          "score": 0.4886
+        },
+        {
+          "cursoId": 19,
+          "nombre": "Scripts de automatización con Python",
+          "categoria": "Automatización",
+          "score": 0.4471
+        },
+        {
+          "cursoId": 21,
+          "nombre": "Visualización de datos y dashboards con Power BI",
+          "categoria": "Análisis de datos",
+          "score": 0.2382
+        },
+        {
+          "cursoId": 26,
+          "nombre": "Integración y entrega continua con contenedores",
+          "categoria": "Herramientas tecnológicas",
+          "score": 0.226
+        },
+        {
+          "cursoId": 15,
+          "nombre": "Procesamiento de lenguaje natural con Python",
+          "categoria": "Inteligencia artificial",
+          "score": 0.2131
+        },
+        {
+          "cursoId": 5,
+          "nombre": "Programación orientada a objetos con Java",
+          "categoria": "Programación",
+          "score": 0.2108
+        },
+        {
+          "cursoId": 24,
+          "nombre": "Contenedores con Docker para desplegar aplicaciones",
+          "categoria": "Herramientas tecnológicas",
+          "score": 0.2028
+        },
+        {
+          "cursoId": 14,
+          "nombre": "Modelos de lenguaje y generación aumentada por recuperación",
+          "categoria": "Inteligencia artificial",
+          "score": 0.1983
+        },
+        {
+          "cursoId": 9,
+          "nombre": "Consultas SQL para análisis de datos",
+          "categoria": "Bases de datos",
+          "score": 0.1922
+        }
+      ]
+    },
+    {
+      "pregunta": "¿Qué puedo estudiar para trabajar con inteligencia artificial?",
+      "puntos": [
+        {
+          "cursoId": 12,
+          "nombre": "Fundamentos de inteligencia artificial para principiantes",
+          "categoria": "Inteligencia artificial",
+          "score": 0.5256
+        },
+        {
+          "cursoId": 16,
+          "nombre": "Visión por computadora con redes neuronales",
+          "categoria": "Inteligencia artificial",
+          "score": 0.4204
+        },
+        {
+          "cursoId": 14,
+          "nombre": "Modelos de lenguaje y generación aumentada por recuperación",
+          "categoria": "Inteligencia artificial",
+          "score": 0.377
+        },
+        {
+          "cursoId": 15,
+          "nombre": "Procesamiento de lenguaje natural con Python",
+          "categoria": "Inteligencia artificial",
+          "score": 0.375
+        },
+        {
+          "cursoId": 13,
+          "nombre": "Machine learning con Python y scikit-learn",
+          "categoria": "Inteligencia artificial",
+          "score": 0.373
+        },
+        {
+          "cursoId": 17,
+          "nombre": "Automatización de flujos de trabajo con n8n",
+          "categoria": "Automatización",
+          "score": 0.2611
+        },
+        {
+          "cursoId": 11,
+          "nombre": "Bases de datos vectoriales para búsqueda semántica",
+          "categoria": "Bases de datos",
+          "score": 0.2559
+        },
+        {
+          "cursoId": 18,
+          "nombre": "Automatización robótica de procesos administrativos",
+          "categoria": "Automatización",
+          "score": 0.2138
+        },
+        {
+          "cursoId": 21,
+          "nombre": "Visualización de datos y dashboards con Power BI",
+          "categoria": "Análisis de datos",
+          "score": 0.1964
+        },
+        {
+          "cursoId": 22,
+          "nombre": "Estadística aplicada al análisis de datos",
+          "categoria": "Análisis de datos",
+          "score": 0.186
+        }
+      ]
+    },
+    {
+      "pregunta": "Quiero aprender a proteger aplicaciones web.",
+      "puntos": [
+        {
+          "cursoId": 4,
+          "nombre": "Seguridad de aplicaciones web con OWASP Top 10",
+          "categoria": "Desarrollo web",
+          "score": 0.5599
+        },
+        {
+          "cursoId": 27,
+          "nombre": "Pruebas de seguridad y hacking ético web",
+          "categoria": "Herramientas tecnológicas",
+          "score": 0.4702
+        },
+        {
+          "cursoId": 8,
+          "nombre": "Autenticación y autorización segura con Spring Security",
+          "categoria": "Programación",
+          "score": 0.4087
+        },
+        {
+          "cursoId": 24,
+          "nombre": "Contenedores con Docker para desplegar aplicaciones",
+          "categoria": "Herramientas tecnológicas",
+          "score": 0.3183
+        },
+        {
+          "cursoId": 2,
+          "nombre": "JavaScript y manipulación del DOM",
+          "categoria": "Desarrollo web",
+          "score": 0.3041
+        },
+        {
+          "cursoId": 1,
+          "nombre": "Fundamentos de HTML y CSS para páginas web",
+          "categoria": "Desarrollo web",
+          "score": 0.2899
+        },
+        {
+          "cursoId": 3,
+          "nombre": "Diseño web responsive con Flexbox y Grid",
+          "categoria": "Desarrollo web",
+          "score": 0.2592
+        },
+        {
+          "cursoId": 17,
+          "nombre": "Automatización de flujos de trabajo con n8n",
+          "categoria": "Automatización",
+          "score": 0.2091
+        },
+        {
+          "cursoId": 6,
+          "nombre": "Desarrollo de APIs REST con Spring Boot",
+          "categoria": "Programación",
+          "score": 0.2068
+        },
+        {
+          "cursoId": 5,
+          "nombre": "Programación orientada a objetos con Java",
+          "categoria": "Programación",
+          "score": 0.2038
+        }
+      ]
+    },
+    {
+      "pregunta": "Necesito desplegar aplicaciones usando contenedores.",
+      "puntos": [
+        {
+          "cursoId": 24,
+          "nombre": "Contenedores con Docker para desplegar aplicaciones",
+          "categoria": "Herramientas tecnológicas",
+          "score": 0.6088
+        },
+        {
+          "cursoId": 26,
+          "nombre": "Integración y entrega continua con contenedores",
+          "categoria": "Herramientas tecnológicas",
+          "score": 0.484
+        },
+        {
+          "cursoId": 25,
+          "nombre": "Orquestación de contenedores con Kubernetes",
+          "categoria": "Herramientas tecnológicas",
+          "score": 0.4204
+        },
+        {
+          "cursoId": 28,
+          "nombre": "Linux y línea de comandos para desarrolladores",
+          "categoria": "Herramientas tecnológicas",
+          "score": 0.2337
+        },
+        {
+          "cursoId": 4,
+          "nombre": "Seguridad de aplicaciones web con OWASP Top 10",
+          "categoria": "Desarrollo web",
+          "score": 0.2155
+        },
+        {
+          "cursoId": 10,
+          "nombre": "Diseño de bases de datos relacionales con PostgreSQL",
+          "categoria": "Bases de datos",
+          "score": 0.2096
+        },
+        {
+          "cursoId": 11,
+          "nombre": "Bases de datos vectoriales para búsqueda semántica",
+          "categoria": "Bases de datos",
+          "score": 0.1977
+        },
+        {
+          "cursoId": 17,
+          "nombre": "Automatización de flujos de trabajo con n8n",
+          "categoria": "Automatización",
+          "score": 0.1967
+        },
+        {
+          "cursoId": 6,
+          "nombre": "Desarrollo de APIs REST con Spring Boot",
+          "categoria": "Programación",
+          "score": 0.1806
+        },
+        {
+          "cursoId": 27,
+          "nombre": "Pruebas de seguridad y hacking ético web",
+          "categoria": "Herramientas tecnológicas",
+          "score": 0.1798
+        }
+      ]
+    },
+    {
+      "pregunta": "Quiero aprender cocina italiana.",
+      "puntos": [
+        {
+          "cursoId": 12,
+          "nombre": "Fundamentos de inteligencia artificial para principiantes",
+          "categoria": "Inteligencia artificial",
+          "score": 0.2515
+        },
+        {
+          "cursoId": 13,
+          "nombre": "Machine learning con Python y scikit-learn",
+          "categoria": "Inteligencia artificial",
+          "score": 0.209
+        },
+        {
+          "cursoId": 5,
+          "nombre": "Programación orientada a objetos con Java",
+          "categoria": "Programación",
+          "score": 0.2016
+        },
+        {
+          "cursoId": 1,
+          "nombre": "Fundamentos de HTML y CSS para páginas web",
+          "categoria": "Desarrollo web",
+          "score": 0.1888
+        },
+        {
+          "cursoId": 22,
+          "nombre": "Estadística aplicada al análisis de datos",
+          "categoria": "Análisis de datos",
+          "score": 0.1874
+        },
+        {
+          "cursoId": 17,
+          "nombre": "Automatización de flujos de trabajo con n8n",
+          "categoria": "Automatización",
+          "score": 0.1837
+        },
+        {
+          "cursoId": 16,
+          "nombre": "Visión por computadora con redes neuronales",
+          "categoria": "Inteligencia artificial",
+          "score": 0.1806
+        },
+        {
+          "cursoId": 9,
+          "nombre": "Consultas SQL para análisis de datos",
+          "categoria": "Bases de datos",
+          "score": 0.1782
+        },
+        {
+          "cursoId": 24,
+          "nombre": "Contenedores con Docker para desplegar aplicaciones",
+          "categoria": "Herramientas tecnológicas",
+          "score": 0.1774
+        },
+        {
+          "cursoId": 28,
+          "nombre": "Linux y línea de comandos para desarrolladores",
+          "categoria": "Herramientas tecnológicas",
+          "score": 0.1689
+        }
+      ]
+    }
+  ]
+}

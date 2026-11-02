@@ -1,0 +1,453 @@
+[
+  {
+    "updatedAt": "2026-11-02T23:41:08.000Z",
+    "createdAt": "2026-11-02T23:40:48.118Z",
+    "id": "RutaIACalibracion",
+    "name": "RutaIA - Calibración de umbral",
+    "description": null,
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+      {
+        "id": "a4c0e0b0-0000-4000-8000-000000000001",
+        "name": "Webhook",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2.2,
+        "position": [
+          0,
+          100
+        ],
+        "webhookId": "7a2e3d4c-0b9f-4c8d-9e7f-6a5b4c3d2e1f",
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "rutaia-calibrar-umbral",
+          "responseMode": "responseNode",
+          "options": {}
+        }
+      },
+      {
+        "id": "a4c0e0b0-0000-4000-8000-000000000002",
+        "name": "Configuración",
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          220,
+          100
+        ],
+        "parameters": {
+          "mode": "manual",
+          "assignments": {
+            "assignments": [
+              {
+                "id": "a4c0e0b0-0000-4000-8000-000000000020",
+                "name": "coleccion",
+                "value": "rutaia_cursos",
+                "type": "string"
+              },
+              {
+                "id": "a4c0e0b0-0000-4000-8000-000000000021",
+                "name": "modeloEmbeddings",
+                "value": "nvidia/nemotron-3-embed-1b:free",
+                "type": "string"
+              },
+              {
+                "id": "a4c0e0b0-0000-4000-8000-000000000022",
+                "name": "dimensionVector",
+                "value": 2048,
+                "type": "number"
+              },
+              {
+                "id": "a4c0e0b0-0000-4000-8000-000000000023",
+                "name": "modeloLlm",
+                "value": "google/gemma-4-31b-it:free",
+                "type": "string"
+              },
+              {
+                "id": "a4c0e0b0-0000-4000-8000-000000000024",
+                "name": "qdrantUrl",
+                "value": "http://qdrant:6333",
+                "type": "string"
+              },
+              {
+                "id": "a4c0e0b0-0000-4000-8000-000000000025",
+                "name": "apiBaseUrl",
+                "value": "http://host.docker.internal:8080/api",
+                "type": "string"
+              },
+              {
+                "id": "a4c0e0b0-0000-4000-8000-000000000026",
+                "name": "openRouterUrl",
+                "value": "https://openrouter.ai/api/v1",
+                "type": "string"
+              }
+            ]
+          },
+          "options": {}
+        }
+      },
+      {
+        "id": "a4c0e0b0-0000-4000-8000-000000000003",
+        "name": "Validar preguntas",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          440,
+          100
+        ],
+        "parameters": {
+          "jsCode": "// Valida el cuerpo {\"preguntas\":[\"…\"]} antes de gastar cuota.\nconst body = $('Webhook').first().json.body ?? {};\nconst preguntas = body.preguntas;\nif (!Array.isArray(preguntas) || preguntas.length === 0) {\n  throw new Error('El cuerpo debe traer \"preguntas\": una lista no vacía de textos');\n}\nif (preguntas.length > 20) {\n  throw new Error(`Se aceptan hasta 20 preguntas por llamada y llegaron ${preguntas.length}`);\n}\nconst limpias = preguntas.map((p, i) => {\n  if (typeof p !== 'string' || !p.trim()) {\n    throw new Error(`La pregunta ${i} está vacía o no es texto`);\n  }\n  return p.trim();\n});\nreturn [{ json: { preguntas: limpias } }];"
+        },
+        "onError": "continueErrorOutput"
+      },
+      {
+        "id": "a4c0e0b0-0000-4000-8000-000000000004",
+        "name": "Leer colección",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          660,
+          100
+        ],
+        "parameters": {
+          "method": "GET",
+          "url": "={{ $('Configuración').first().json.qdrantUrl }}/collections/{{ $('Configuración').first().json.coleccion }}",
+          "options": {
+            "response": {
+              "response": {
+                "fullResponse": true,
+                "neverError": true
+              }
+            }
+          }
+        },
+        "onError": "continueErrorOutput"
+      },
+      {
+        "id": "a4c0e0b0-0000-4000-8000-000000000005",
+        "name": "Comprobar colección",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          880,
+          100
+        ],
+        "parameters": {
+          "jsCode": "// Comprueba que la colección exista, tenga la configuración de C9 y tenga puntos; luego arma el cuerpo de embeddings.\nconst { coleccion, dimensionVector, modeloEmbeddings } = $('Configuración').first().json;\nconst resp = $input.first().json;\nif (resp.statusCode === 404) {\n  throw new Error(`La colección ${coleccion} no existe en Qdrant; ejecuta antes el flujo «RutaIA - Indexación de cursos»`);\n}\nif (resp.statusCode !== 200) {\n  throw new Error(`Qdrant respondió HTTP ${resp.statusCode} al leer la colección ${coleccion}: ${JSON.stringify(resp.body?.status ?? resp.body)}`);\n}\nconst v = resp.body?.result?.config?.params?.vectors;\nif (!v || v.size !== dimensionVector || v.distance !== 'Cosine') {\n  throw new Error(`La colección ${coleccion} tiene otra configuración (${JSON.stringify(v)}); se esperaba size ${dimensionVector} y distance Cosine`);\n}\nconst puntos = resp.body?.result?.points_count;\nif (!Number.isInteger(puntos) || puntos < 1) {\n  throw new Error(`La colección ${coleccion} no tiene puntos; ejecuta antes el flujo «RutaIA - Indexación de cursos»`);\n}\n// C9: la pregunta con trim, sin prefijos, con input_type query.\nreturn [{\n  json: {\n    cuerpo: {\n      model: modeloEmbeddings,\n      input: $('Validar preguntas').first().json.preguntas,\n      input_type: 'query',\n      encoding_format: 'float',\n    },\n  },\n}];"
+        },
+        "onError": "continueErrorOutput"
+      },
+      {
+        "id": "a4c0e0b0-0000-4000-8000-000000000006",
+        "name": "Generar embeddings",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          1100,
+          100
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "={{ $('Configuración').first().json.openRouterUrl }}/embeddings",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify($json.cuerpo) }}",
+          "options": {
+            "response": {
+              "response": {
+                "fullResponse": true,
+                "neverError": true
+              }
+            },
+            "timeout": 120000
+          }
+        },
+        "onError": "continueErrorOutput",
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "zLvfa0tPU6IKdFZW",
+            "name": "RutaIA OpenRouter"
+          }
+        }
+      },
+      {
+        "id": "a4c0e0b0-0000-4000-8000-000000000007",
+        "name": "Validar embeddings",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1320,
+          100
+        ],
+        "parameters": {
+          "jsCode": "// Comprueba la respuesta de OpenRouter y arma una búsqueda de calibración por pregunta (C9: limit 10, sin score_threshold).\nconst { dimensionVector } = $('Configuración').first().json;\nconst preguntas = $('Validar preguntas').first().json.preguntas;\nconst resp = $input.first().json;\nconst body = resp.body ?? {};\nif (resp.statusCode !== 200 || body.error) {\n  const codigo = body.error?.code ?? resp.statusCode;\n  const pistas = {\n    429: 'cuota de la capa gratuita agotada o proveedor saturado; reintenta más tarde',\n    404: 'ruta :free no disponible; revisa la privacidad en https://openrouter.ai/settings/privacy',\n    402: 'saldo negativo en la cuenta de OpenRouter',\n  };\n  const detalle = body.error?.message ?? JSON.stringify(body).slice(0, 300);\n  const pista = pistas[codigo] ? ` (${pistas[codigo]})` : '';\n  throw new Error(`OpenRouter respondió HTTP ${codigo} en /embeddings: ${detalle}${pista}`);\n}\nconst data = body.data;\nif (!Array.isArray(data) || data.length !== preguntas.length) {\n  throw new Error(`OpenRouter devolvió ${Array.isArray(data) ? data.length : 0} vectores para ${preguntas.length} preguntas`);\n}\nconst ordenados = [...data].sort((a, b) => a.index - b.index);\nordenados.forEach((d, i) => {\n  if (d.index !== i) {\n    throw new Error(`Los índices de OpenRouter no son 0..${preguntas.length - 1} (falta el ${i})`);\n  }\n  const v = d.embedding;\n  if (!Array.isArray(v) || v.length !== dimensionVector || !v.every(Number.isFinite)) {\n    throw new Error(`El vector ${i} («${preguntas[i]}») no tiene ${dimensionVector} números finitos`);\n  }\n});\nreturn preguntas.map((pregunta, i) => ({\n  json: {\n    pregunta,\n    cuerpo: {\n      query: ordenados[i].embedding,\n      filter: { must: [{ key: 'activo', match: { value: true } }] },\n      limit: 10,\n      with_payload: true,\n      with_vector: false,\n    },\n  },\n}));"
+        },
+        "onError": "continueErrorOutput"
+      },
+      {
+        "id": "a4c0e0b0-0000-4000-8000-000000000008",
+        "name": "Buscar en Qdrant",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          1540,
+          100
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "={{ $('Configuración').first().json.qdrantUrl }}/collections/{{ $('Configuración').first().json.coleccion }}/points/query",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify($json.cuerpo) }}",
+          "options": {
+            "response": {
+              "response": {
+                "fullResponse": true,
+                "neverError": true
+              }
+            }
+          }
+        },
+        "onError": "continueErrorOutput"
+      },
+      {
+        "id": "a4c0e0b0-0000-4000-8000-000000000009",
+        "name": "Armar respuesta",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1760,
+          100
+        ],
+        "parameters": {
+          "jsCode": "// Respuesta 200 de W-3: los 10 mejores puntos por pregunta, sin umbral.\nconst { coleccion, modeloEmbeddings } = $('Configuración').first().json;\nconst consultas = $('Validar embeddings').all();\nconst respuestas = $input.all();\nif (respuestas.length !== consultas.length) {\n  throw new Error(`Qdrant respondió ${respuestas.length} búsquedas para ${consultas.length} preguntas`);\n}\n// «Buscar en Qdrant» procesa un ítem por pregunta y conserva el orden.\nconst resultados = respuestas.map((item, i) => {\n  const pregunta = consultas[i].json.pregunta;\n  const resp = item.json;\n  const points = resp.body?.result?.points;\n  if (resp.statusCode !== 200 || !Array.isArray(points)) {\n    throw new Error(`Qdrant respondió HTTP ${resp.statusCode} al buscar «${pregunta}»: ${JSON.stringify(resp.body?.status ?? resp.body)}`);\n  }\n  const puntos = points.map((p) => {\n    if (p.payload?.activo !== true) {\n      throw new Error(`El punto ${p.id} no está activo y no debía aparecer en «${pregunta}»`);\n    }\n    return {\n      cursoId: p.payload.cursoId,\n      nombre: p.payload.nombre,\n      categoria: p.payload.categoria,\n      score: Math.round(p.score * 10000) / 10000,\n    };\n  });\n  return { pregunta, puntos };\n});\nreturn [{ json: { modelo: modeloEmbeddings, coleccion, resultados } }];"
+        },
+        "onError": "continueErrorOutput"
+      },
+      {
+        "id": "a4c0e0b0-0000-4000-8000-000000000010",
+        "name": "Responder",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.5,
+        "position": [
+          1980,
+          100
+        ],
+        "parameters": {
+          "respondWith": "firstIncomingItem",
+          "options": {
+            "responseCode": 200
+          }
+        }
+      },
+      {
+        "id": "a4c0e0b0-0000-4000-8000-000000000011",
+        "name": "Armar error",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1100,
+          400
+        ],
+        "parameters": {
+          "jsCode": "// Normaliza el error de cualquier paso para la respuesta 500 de W-3.\nconst e = $input.first().json.error;\nlet mensaje = typeof e === 'string' ? e : (e?.message ?? JSON.stringify(e));\nif (e && typeof e === 'object' && e.code && !String(mensaje).includes(e.code)) {\n  mensaje += ` (${e.code})`;\n}\nreturn [{ json: { error: `Falló el paso «${$prevNode.name}»: ${mensaje}` } }];"
+        }
+      },
+      {
+        "id": "a4c0e0b0-0000-4000-8000-000000000012",
+        "name": "Responder error",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.5,
+        "position": [
+          1320,
+          400
+        ],
+        "parameters": {
+          "respondWith": "firstIncomingItem",
+          "options": {
+            "responseCode": 500
+          }
+        }
+      }
+    ],
+    "connections": {
+      "Webhook": {
+        "main": [
+          [
+            {
+              "node": "Configuración",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Configuración": {
+        "main": [
+          [
+            {
+              "node": "Validar preguntas",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Validar preguntas": {
+        "main": [
+          [
+            {
+              "node": "Leer colección",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Armar error",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Leer colección": {
+        "main": [
+          [
+            {
+              "node": "Comprobar colección",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Armar error",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Comprobar colección": {
+        "main": [
+          [
+            {
+              "node": "Generar embeddings",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Armar error",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Generar embeddings": {
+        "main": [
+          [
+            {
+              "node": "Validar embeddings",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Armar error",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Validar embeddings": {
+        "main": [
+          [
+            {
+              "node": "Buscar en Qdrant",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Armar error",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Buscar en Qdrant": {
+        "main": [
+          [
+            {
+              "node": "Armar respuesta",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Armar error",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Armar respuesta": {
+        "main": [
+          [
+            {
+              "node": "Responder",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Armar error",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Armar error": {
+        "main": [
+          [
+            {
+              "node": "Responder error",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1"
+    },
+    "staticData": null,
+    "meta": null,
+    "nodeGroups": [],
+    "pinData": {},
+    "versionId": "762febb0-d2a1-4e01-b617-2a248b69002d",
+    "activeVersionId": "762febb0-d2a1-4e01-b617-2a248b69002d",
+    "versionCounter": 1,
+    "triggerCount": 1,
+    "sourceWorkflowId": null,
+    "tags": [],
+    "versionMetadata": {
+      "name": null,
+      "description": null
+    }
+  }
+]
