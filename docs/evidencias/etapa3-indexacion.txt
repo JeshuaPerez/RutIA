@@ -1,0 +1,63 @@
+# Etapa 3 — Ejecuciones del flujo «RutaIA - Indexación de cursos» (2026-11-02, hora local UTC−6)
+# n8n 2.45.7 (contenedor), Qdrant v1.20.0, API de la Etapa 2 con la semilla (30 cursos: 28 activos, 2 inactivos).
+# Comandos ejecutados con curl desde Git Bash en la raíz del repositorio.
+# «Nodos ejecutados» se leyó de execution_entity/execution_data en /home/node/.n8n/database.sqlite.
+
+## Importación y publicación
+$ docker compose exec n8n n8n import:workflow --input=/home/node/flujos/rutaia-indexacion-cursos.json
+$ docker compose exec n8n n8n list:workflow
+RutaIAIndexacion|RutaIA - Indexación de cursos
+$ docker compose exec n8n n8n publish:workflow --id=RutaIAIndexacion
+Publishing workflow with ID: RutaIAIndexacion (current version)
+Note: Changes will not take effect if n8n is running.
+Please restart n8n for changes to take effect if n8n is currently running.
+$ docker compose restart n8n
+
+## Ejecución 1 (17:25) — Qdrant detenido
+$ docker compose stop qdrant
+ Container rutaia-qdrant-1 Stopped
+$ curl -s -w '\nHTTP %{http_code}\n' -X POST http://127.0.0.1:5678/webhook/rutaia-indexar-cursos
+{"error":"Falló el paso «¿Existe la colección?»: getaddrinfo EAI_AGAIN qdrant"}
+HTTP 500
+Nodos ejecutados: Webhook | Configuración | Leer cursos | Validar cursos | ¿Existe la colección? | Armar error | Responder error
+(«Generar embeddings» no se ejecutó: 0 solicitudes a OpenRouter.)
+$ docker compose start qdrant
+ Container rutaia-qdrant-1 Started
+$ curl -s http://127.0.0.1:6333/collections
+{"result":{"collections":[]},"status":"ok","time":0.000027514}
+
+## Ejecución 2 (17:26:17) — primera indexación
+$ curl -s -w '\nHTTP %{http_code}\n' -X POST http://127.0.0.1:5678/webhook/rutaia-indexar-cursos
+{"coleccion":"rutaia_cursos","coleccionCreada":true,"cursosLeidos":30,"puntosGuardados":30,"activos":28,"inactivos":2,"totalPuntos":30}
+HTTP 200
+Nodos ejecutados: Webhook | Configuración | Leer cursos | Validar cursos | ¿Existe la colección? | Decidir colección | ¿Ya existe? | Crear colección | Comprobar colección | Crear índice activo | Preparar textos | Generar embeddings | Validar embeddings | Guardar puntos | Contar puntos | Armar respuesta | Responder
+(1 solicitud a OpenRouter con los 30 textos en un solo arreglo.)
+
+## Ejecución 3 (17:26:28) — re-indexación
+$ curl -s -w '\nHTTP %{http_code}\n' -X POST http://127.0.0.1:5678/webhook/rutaia-indexar-cursos
+{"coleccion":"rutaia_cursos","coleccionCreada":false,"cursosLeidos":30,"puntosGuardados":30,"activos":28,"inactivos":2,"totalPuntos":30}
+HTTP 200
+Nodos ejecutados: Webhook | Configuración | Leer cursos | Validar cursos | ¿Existe la colección? | Decidir colección | ¿Ya existe? | Leer configuración | Comprobar colección | Crear índice activo | Preparar textos | Generar embeddings | Validar embeddings | Guardar puntos | Contar puntos | Armar respuesta | Responder
+(1 solicitud a OpenRouter. totalPuntos sigue en 30: el upsert por ID no duplica.)
+
+## Payload de Qdrant contra PostgreSQL (los 30 cursos)
+Se comparó, con JSON.stringify (mismas claves, mismo orden, mismos valores), el payload de cada punto
+(scroll con limit 100 y with_vector true) con esta consulta a la tabla curso:
+  select json_agg(json_build_object('cursoId',id,'nombre',nombre,'descripcion',descripcion,'categoria',categoria,
+         'nivel',nivel,'duracionHoras',duracion_horas,'activo',activo) order by id) from curso
+Resultado:
+filas BD 30 puntos 30 coinciden exacto (payload, orden de claves y vector 2048 finito): 30
+id=1 BD   : {"cursoId":1,"nombre":"Fundamentos de HTML y CSS para páginas web","descripcion":"Curso pa…
+id=1 Qdrant: {"cursoId":1,"nombre":"Fundamentos de HTML y CSS para páginas web","descripcion":"Curso pa… true
+Inactivos en Qdrant (filtro activo=false): ids 29 y 30 (ver etapa3-qdrant.txt).
+
+## JSON exportado
+$ docker compose exec n8n n8n export:workflow --id=RutaIAIndexacion --published --output=/home/node/flujos/rutaia-indexacion-cursos.json --pretty
+Successfully exported 1 workflow.
+Se quitó el bloque "shared" del archivo exportado (contenía el nombre y el correo del propietario de n8n; la importación no lo necesita).
+$ grep -ciE "@|outlook|gmail|sk-or-v1|bearer " n8n/rutaia-indexacion-cursos.json
+0
+La credencial aparece solo por referencia: "httpHeaderAuth": {"id": "zLvfa0tPU6IKdFZW", "name": "RutaIA OpenRouter"}.
+
+## Solicitudes a OpenRouter en la Etapa 3
+Ejecución 1: 0 · Ejecución 2: 1 · Ejecución 3: 1 · Total: 2 (presupuesto ≤ 3).

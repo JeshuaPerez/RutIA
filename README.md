@@ -102,7 +102,8 @@ docker compose exec n8n n8n publish:workflow --id=<ID>
 ```
 
 En n8n 2.x solo la versión **publicada** atiende la URL de producción `/webhook/…`. Antes de importar, crea la credencial «RutaIA OpenRouter».
-*Pendiente (Etapa de n8n):* orden de importación, asignación de credenciales e indexación inicial ([docs/n8n.md](docs/n8n.md)).
+Indexación inicial (después de cargar, cambiar o desactivar cursos): `curl -s -X POST http://127.0.0.1:5678/webhook/rutaia-indexar-cursos` (en PowerShell, `curl.exe`). Importación, credencial y publicación de cada flujo: [docs/n8n.md](docs/n8n.md#indexación).
+*Pendiente (etapas siguientes):* flujos de calibración y RAG.
 
 ## 7. Endpoints principales y ejemplos de uso
 

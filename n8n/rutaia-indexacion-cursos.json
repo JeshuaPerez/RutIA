@@ -1,0 +1,803 @@
+[
+  {
+    "updatedAt": "2026-11-02T23:25:10.000Z",
+    "createdAt": "2026-11-02T23:24:59.602Z",
+    "id": "RutaIAIndexacion",
+    "name": "RutaIA - Indexación de cursos",
+    "description": null,
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+      {
+        "id": "a3c0e0b0-0000-4000-8000-000000000001",
+        "name": "Ejecutar manualmente",
+        "type": "n8n-nodes-base.manualTrigger",
+        "typeVersion": 1,
+        "position": [
+          0,
+          0
+        ],
+        "parameters": {}
+      },
+      {
+        "id": "a3c0e0b0-0000-4000-8000-000000000002",
+        "name": "Webhook",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2.2,
+        "position": [
+          0,
+          200
+        ],
+        "webhookId": "6f1d2c3b-9a8e-4b7c-8d6e-5f4a3b2c1d0e",
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "rutaia-indexar-cursos",
+          "responseMode": "responseNode",
+          "options": {}
+        }
+      },
+      {
+        "id": "a3c0e0b0-0000-4000-8000-000000000003",
+        "name": "Configuración",
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          220,
+          100
+        ],
+        "parameters": {
+          "mode": "manual",
+          "assignments": {
+            "assignments": [
+              {
+                "id": "a3c0e0b0-0000-4000-8000-000000000004",
+                "name": "coleccion",
+                "value": "rutaia_cursos",
+                "type": "string"
+              },
+              {
+                "id": "a3c0e0b0-0000-4000-8000-000000000005",
+                "name": "modeloEmbeddings",
+                "value": "nvidia/nemotron-3-embed-1b:free",
+                "type": "string"
+              },
+              {
+                "id": "a3c0e0b0-0000-4000-8000-000000000006",
+                "name": "dimensionVector",
+                "value": 2048,
+                "type": "number"
+              },
+              {
+                "id": "a3c0e0b0-0000-4000-8000-000000000007",
+                "name": "modeloLlm",
+                "value": "google/gemma-4-31b-it:free",
+                "type": "string"
+              },
+              {
+                "id": "a3c0e0b0-0000-4000-8000-000000000008",
+                "name": "qdrantUrl",
+                "value": "http://qdrant:6333",
+                "type": "string"
+              },
+              {
+                "id": "a3c0e0b0-0000-4000-8000-000000000009",
+                "name": "apiBaseUrl",
+                "value": "http://host.docker.internal:8080/api",
+                "type": "string"
+              },
+              {
+                "id": "a3c0e0b0-0000-4000-8000-000000000010",
+                "name": "openRouterUrl",
+                "value": "https://openrouter.ai/api/v1",
+                "type": "string"
+              }
+            ]
+          },
+          "options": {}
+        }
+      },
+      {
+        "id": "a3c0e0b0-0000-4000-8000-000000000011",
+        "name": "Leer cursos",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          440,
+          100
+        ],
+        "parameters": {
+          "method": "GET",
+          "url": "={{ $json.apiBaseUrl }}/admin/cursos",
+          "options": {
+            "response": {
+              "response": {
+                "fullResponse": true,
+                "neverError": true
+              }
+            }
+          }
+        },
+        "onError": "continueErrorOutput"
+      },
+      {
+        "id": "a3c0e0b0-0000-4000-8000-000000000012",
+        "name": "Validar cursos",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          660,
+          100
+        ],
+        "parameters": {
+          "jsCode": "// Valida la respuesta de GET {apiBaseUrl}/admin/cursos (E-07) antes de gastar cuota.\nconst resp = $input.first().json;\nif (resp.statusCode !== 200) {\n  throw new Error(`La API respondió HTTP ${resp.statusCode} en GET /admin/cursos`);\n}\nconst cursos = resp.body;\nif (!Array.isArray(cursos)) {\n  throw new Error('La API no devolvió un arreglo de cursos en GET /admin/cursos');\n}\nif (cursos.length < 20) {\n  throw new Error(`Se necesitan al menos 20 cursos y la API devolvió ${cursos.length}`);\n}\nconst ids = new Set();\nfor (const c of cursos) {\n  if (!Number.isInteger(c.id) || c.id < 1) {\n    throw new Error(`Curso con id inválido: ${JSON.stringify(c.id)}`);\n  }\n  if (ids.has(c.id)) {\n    throw new Error(`El curso id ${c.id} aparece dos veces`);\n  }\n  ids.add(c.id);\n  for (const campo of ['nombre', 'descripcion', 'categoria', 'nivel']) {\n    if (typeof c[campo] !== 'string' || !c[campo].trim()) {\n      throw new Error(`El curso id ${c.id} no tiene ${campo}`);\n    }\n  }\n  if (!Number.isInteger(c.duracionHoras) || c.duracionHoras <= 0) {\n    throw new Error(`El curso id ${c.id} tiene una duracionHoras inválida`);\n  }\n  if (typeof c.activo !== 'boolean') {\n    throw new Error(`El curso id ${c.id} no indica si está activo`);\n  }\n}\nreturn [{ json: { cursos } }];"
+        },
+        "onError": "continueErrorOutput"
+      },
+      {
+        "id": "a3c0e0b0-0000-4000-8000-000000000013",
+        "name": "¿Existe la colección?",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          880,
+          100
+        ],
+        "parameters": {
+          "method": "GET",
+          "url": "={{ $('Configuración').first().json.qdrantUrl }}/collections/{{ $('Configuración').first().json.coleccion }}/exists",
+          "options": {
+            "response": {
+              "response": {
+                "fullResponse": true,
+                "neverError": true
+              }
+            }
+          }
+        },
+        "onError": "continueErrorOutput"
+      },
+      {
+        "id": "a3c0e0b0-0000-4000-8000-000000000014",
+        "name": "Decidir colección",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1100,
+          100
+        ],
+        "parameters": {
+          "jsCode": "// Lee result.exists de GET /collections/{coleccion}/exists.\nconst resp = $input.first().json;\nconst existe = resp.body?.result?.exists;\nif (resp.statusCode !== 200 || typeof existe !== 'boolean') {\n  throw new Error(`Qdrant respondió HTTP ${resp.statusCode} al comprobar si existe la colección`);\n}\nreturn [{ json: { existe } }];"
+        },
+        "onError": "continueErrorOutput"
+      },
+      {
+        "id": "a3c0e0b0-0000-4000-8000-000000000015",
+        "name": "¿Ya existe?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          1320,
+          100
+        ],
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "id": "a3c0e0b0-0000-4000-8000-000000000016",
+                "leftValue": "={{ $json.existe }}",
+                "rightValue": "",
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        }
+      },
+      {
+        "id": "a3c0e0b0-0000-4000-8000-000000000017",
+        "name": "Leer configuración",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          1540,
+          0
+        ],
+        "parameters": {
+          "method": "GET",
+          "url": "={{ $('Configuración').first().json.qdrantUrl }}/collections/{{ $('Configuración').first().json.coleccion }}",
+          "options": {
+            "response": {
+              "response": {
+                "fullResponse": true,
+                "neverError": true
+              }
+            }
+          }
+        },
+        "onError": "continueErrorOutput"
+      },
+      {
+        "id": "a3c0e0b0-0000-4000-8000-000000000018",
+        "name": "Crear colección",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          1540,
+          200
+        ],
+        "parameters": {
+          "method": "PUT",
+          "url": "={{ $('Configuración').first().json.qdrantUrl }}/collections/{{ $('Configuración').first().json.coleccion }}",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify({ vectors: { size: $('Configuración').first().json.dimensionVector, distance: 'Cosine' } }) }}",
+          "options": {
+            "response": {
+              "response": {
+                "fullResponse": true,
+                "neverError": true
+              }
+            }
+          }
+        },
+        "onError": "continueErrorOutput"
+      },
+      {
+        "id": "a3c0e0b0-0000-4000-8000-000000000019",
+        "name": "Comprobar colección",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1760,
+          100
+        ],
+        "parameters": {
+          "jsCode": "// Llega desde «Crear colección» (no existía) o desde «Leer configuración» (ya existía).\nconst { coleccion, dimensionVector } = $('Configuración').first().json;\nconst resp = $input.first().json;\nconst creada = $('Crear colección').isExecuted;\nif (resp.statusCode !== 200) {\n  throw new Error(`Qdrant respondió HTTP ${resp.statusCode} al ${creada ? 'crear' : 'leer'} la colección ${coleccion}: ${JSON.stringify(resp.body?.status ?? resp.body)}`);\n}\nif (!creada) {\n  // Si la colección existente no coincide con C9, se falla sin borrar nada.\n  const v = resp.body?.result?.config?.params?.vectors;\n  if (!v || v.size !== dimensionVector || v.distance !== 'Cosine') {\n    throw new Error(`La colección ${coleccion} ya existe con otra configuración (${JSON.stringify(v)}); se esperaba un vector sin nombre con size ${dimensionVector} y distance Cosine. No se borró nada`);\n  }\n}\nreturn [{ json: { coleccionCreada: creada } }];"
+        },
+        "onError": "continueErrorOutput"
+      },
+      {
+        "id": "a3c0e0b0-0000-4000-8000-000000000020",
+        "name": "Crear índice activo",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          1980,
+          100
+        ],
+        "parameters": {
+          "method": "PUT",
+          "url": "={{ $('Configuración').first().json.qdrantUrl }}/collections/{{ $('Configuración').first().json.coleccion }}/index?wait=true",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify({ field_name: \"activo\", field_schema: \"bool\" }) }}",
+          "options": {
+            "response": {
+              "response": {
+                "fullResponse": true,
+                "neverError": true
+              }
+            }
+          }
+        },
+        "onError": "continueErrorOutput"
+      },
+      {
+        "id": "a3c0e0b0-0000-4000-8000-000000000021",
+        "name": "Preparar textos",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2200,
+          100
+        ],
+        "parameters": {
+          "jsCode": "// Arma el texto de C9 por curso, en el mismo orden que la API (id asc).\nconst cfg = $('Configuración').first().json;\nconst indice = $input.first().json;\nif (indice.statusCode !== 200) {\n  throw new Error(`Qdrant respondió HTTP ${indice.statusCode} al crear el índice de payload activo: ${JSON.stringify(indice.body?.status ?? indice.body)}`);\n}\nconst cursos = $('Validar cursos').first().json.cursos;\nconst textos = cursos.map((c) =>\n  [c.nombre, `Categoría: ${c.categoria}`, `Nivel: ${c.nivel}`, c.descripcion].join('\\n'),\n);\nreturn [{\n  json: {\n    cuerpo: {\n      model: cfg.modeloEmbeddings,\n      input: textos,\n      input_type: 'passage',\n      encoding_format: 'float',\n    },\n  },\n}];"
+        },
+        "onError": "continueErrorOutput"
+      },
+      {
+        "id": "a3c0e0b0-0000-4000-8000-000000000022",
+        "name": "Generar embeddings",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          2420,
+          100
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "={{ $('Configuración').first().json.openRouterUrl }}/embeddings",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify($json.cuerpo) }}",
+          "options": {
+            "response": {
+              "response": {
+                "fullResponse": true,
+                "neverError": true
+              }
+            },
+            "timeout": 120000
+          }
+        },
+        "onError": "continueErrorOutput",
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "zLvfa0tPU6IKdFZW",
+            "name": "RutaIA OpenRouter"
+          }
+        }
+      },
+      {
+        "id": "a3c0e0b0-0000-4000-8000-000000000023",
+        "name": "Validar embeddings",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2640,
+          100
+        ],
+        "parameters": {
+          "jsCode": "// Comprueba la respuesta de OpenRouter y arma los puntos (id = cursoId, payload de C9).\nconst { dimensionVector } = $('Configuración').first().json;\nconst cursos = $('Validar cursos').first().json.cursos;\nconst resp = $input.first().json;\nconst body = resp.body ?? {};\nif (resp.statusCode !== 200 || body.error) {\n  const codigo = body.error?.code ?? resp.statusCode;\n  const pistas = {\n    429: 'cuota de la capa gratuita agotada o proveedor saturado; reintenta más tarde',\n    404: 'ruta :free no disponible; revisa la privacidad en https://openrouter.ai/settings/privacy',\n    402: 'saldo negativo en la cuenta de OpenRouter',\n  };\n  const detalle = body.error?.message ?? JSON.stringify(body).slice(0, 300);\n  const pista = pistas[codigo] ? ` (${pistas[codigo]})` : '';\n  throw new Error(`OpenRouter respondió HTTP ${codigo} en /embeddings: ${detalle}${pista}`);\n}\nconst data = body.data;\nif (!Array.isArray(data) || data.length !== cursos.length) {\n  throw new Error(`OpenRouter devolvió ${Array.isArray(data) ? data.length : 0} vectores para ${cursos.length} cursos`);\n}\nconst ordenados = [...data].sort((a, b) => a.index - b.index);\nordenados.forEach((d, i) => {\n  if (d.index !== i) {\n    throw new Error(`Los índices de OpenRouter no son 0..${cursos.length - 1} (falta el ${i})`);\n  }\n  const v = d.embedding;\n  if (!Array.isArray(v) || v.length !== dimensionVector || !v.every(Number.isFinite)) {\n    throw new Error(`El vector ${i} (curso id ${cursos[i].id}) no tiene ${dimensionVector} números finitos`);\n  }\n});\nconst points = cursos.map((c, i) => ({\n  id: c.id,\n  vector: ordenados[i].embedding,\n  payload: {\n    cursoId: c.id,\n    nombre: c.nombre,\n    descripcion: c.descripcion,\n    categoria: c.categoria,\n    nivel: c.nivel,\n    duracionHoras: c.duracionHoras,\n    activo: c.activo,\n  },\n}));\nreturn [{ json: { cuerpo: { points } } }];"
+        },
+        "onError": "continueErrorOutput"
+      },
+      {
+        "id": "a3c0e0b0-0000-4000-8000-000000000024",
+        "name": "Guardar puntos",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          2860,
+          100
+        ],
+        "parameters": {
+          "method": "PUT",
+          "url": "={{ $('Configuración').first().json.qdrantUrl }}/collections/{{ $('Configuración').first().json.coleccion }}/points?wait=true",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify($json.cuerpo) }}",
+          "options": {
+            "response": {
+              "response": {
+                "fullResponse": true,
+                "neverError": true
+              }
+            },
+            "timeout": 120000
+          }
+        },
+        "onError": "continueErrorOutput"
+      },
+      {
+        "id": "a3c0e0b0-0000-4000-8000-000000000025",
+        "name": "Contar puntos",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          3080,
+          100
+        ],
+        "parameters": {
+          "method": "GET",
+          "url": "={{ $('Configuración').first().json.qdrantUrl }}/collections/{{ $('Configuración').first().json.coleccion }}",
+          "options": {
+            "response": {
+              "response": {
+                "fullResponse": true,
+                "neverError": true
+              }
+            }
+          }
+        },
+        "onError": "continueErrorOutput"
+      },
+      {
+        "id": "a3c0e0b0-0000-4000-8000-000000000026",
+        "name": "Armar respuesta",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          3300,
+          100
+        ],
+        "parameters": {
+          "jsCode": "// Respuesta 200 de W-2.\nconst { coleccion } = $('Configuración').first().json;\nconst cursos = $('Validar cursos').first().json.cursos;\nconst upsert = $('Guardar puntos').first().json;\nif (upsert.statusCode !== 200 || upsert.body?.result?.status !== 'completed') {\n  throw new Error(`Qdrant respondió HTTP ${upsert.statusCode} al guardar los puntos: ${JSON.stringify(upsert.body?.status ?? upsert.body)}`);\n}\nconst info = $input.first().json;\nconst totalPuntos = info.body?.result?.points_count;\nif (info.statusCode !== 200 || !Number.isInteger(totalPuntos)) {\n  throw new Error(`Qdrant respondió HTTP ${info.statusCode} al contar los puntos de la colección`);\n}\nconst activos = cursos.filter((c) => c.activo).length;\nreturn [{\n  json: {\n    coleccion,\n    coleccionCreada: $('Comprobar colección').first().json.coleccionCreada,\n    cursosLeidos: cursos.length,\n    puntosGuardados: $('Validar embeddings').first().json.cuerpo.points.length,\n    activos,\n    inactivos: cursos.length - activos,\n    totalPuntos,\n  },\n}];"
+        },
+        "onError": "continueErrorOutput"
+      },
+      {
+        "id": "a3c0e0b0-0000-4000-8000-000000000027",
+        "name": "Responder",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.5,
+        "position": [
+          3520,
+          100
+        ],
+        "parameters": {
+          "respondWith": "firstIncomingItem",
+          "options": {
+            "responseCode": 200
+          }
+        }
+      },
+      {
+        "id": "a3c0e0b0-0000-4000-8000-000000000028",
+        "name": "Armar error",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1760,
+          500
+        ],
+        "parameters": {
+          "jsCode": "// Normaliza el error de cualquier paso para la respuesta 500 de W-2.\nconst e = $input.first().json.error;\nlet mensaje = typeof e === 'string' ? e : (e?.message ?? JSON.stringify(e));\nif (e && typeof e === 'object' && e.code && !String(mensaje).includes(e.code)) {\n  mensaje += ` (${e.code})`;\n}\nreturn [{ json: { error: `Falló el paso «${$prevNode.name}»: ${mensaje}` } }];"
+        }
+      },
+      {
+        "id": "a3c0e0b0-0000-4000-8000-000000000029",
+        "name": "Responder error",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.5,
+        "position": [
+          1980,
+          500
+        ],
+        "parameters": {
+          "respondWith": "firstIncomingItem",
+          "options": {
+            "responseCode": 500
+          }
+        }
+      }
+    ],
+    "connections": {
+      "Ejecutar manualmente": {
+        "main": [
+          [
+            {
+              "node": "Configuración",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Webhook": {
+        "main": [
+          [
+            {
+              "node": "Configuración",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Configuración": {
+        "main": [
+          [
+            {
+              "node": "Leer cursos",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Leer cursos": {
+        "main": [
+          [
+            {
+              "node": "Validar cursos",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Armar error",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Validar cursos": {
+        "main": [
+          [
+            {
+              "node": "¿Existe la colección?",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Armar error",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "¿Existe la colección?": {
+        "main": [
+          [
+            {
+              "node": "Decidir colección",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Armar error",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Decidir colección": {
+        "main": [
+          [
+            {
+              "node": "¿Ya existe?",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Armar error",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "¿Ya existe?": {
+        "main": [
+          [
+            {
+              "node": "Leer configuración",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Crear colección",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Leer configuración": {
+        "main": [
+          [
+            {
+              "node": "Comprobar colección",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Armar error",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Crear colección": {
+        "main": [
+          [
+            {
+              "node": "Comprobar colección",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Armar error",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Comprobar colección": {
+        "main": [
+          [
+            {
+              "node": "Crear índice activo",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Armar error",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Crear índice activo": {
+        "main": [
+          [
+            {
+              "node": "Preparar textos",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Armar error",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Preparar textos": {
+        "main": [
+          [
+            {
+              "node": "Generar embeddings",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Armar error",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Generar embeddings": {
+        "main": [
+          [
+            {
+              "node": "Validar embeddings",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Armar error",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Validar embeddings": {
+        "main": [
+          [
+            {
+              "node": "Guardar puntos",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Armar error",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Guardar puntos": {
+        "main": [
+          [
+            {
+              "node": "Contar puntos",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Armar error",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Contar puntos": {
+        "main": [
+          [
+            {
+              "node": "Armar respuesta",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Armar error",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Armar respuesta": {
+        "main": [
+          [
+            {
+              "node": "Responder",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Armar error",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Armar error": {
+        "main": [
+          [
+            {
+              "node": "Responder error",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1"
+    },
+    "staticData": null,
+    "meta": null,
+    "nodeGroups": [],
+    "pinData": {},
+    "versionId": "d3db8144-0199-4088-ad12-8e2b379dabac",
+    "activeVersionId": "d3db8144-0199-4088-ad12-8e2b379dabac",
+    "versionCounter": 1,
+    "triggerCount": 1,
+    "sourceWorkflowId": null,
+    "tags": [],
+    "versionMetadata": {
+      "name": null,
+      "description": null
+    }
+  }
+]
