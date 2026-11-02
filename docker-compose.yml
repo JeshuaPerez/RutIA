@@ -1,0 +1,50 @@
+# RutaIA — infraestructura local (PostgreSQL, Qdrant y n8n).
+# El backend (Spring Boot) y el frontend (jwebserver) corren en la máquina, no aquí.
+# Etiquetas exactas verificadas el 2026-11-01 en las releases oficiales:
+#   - qdrant/qdrant v1.20.0  (https://github.com/qdrant/qdrant/releases, publicada 2026-10-22)
+#   - n8n 2.45.7             (https://github.com/n8n-io/n8n/releases, canal stable, publicada 2026-10-30)
+name: rutaia
+
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: rutaia
+      POSTGRES_USER: ${RUTAIA_DB_USER:?Define RUTAIA_DB_USER en .env}
+      POSTGRES_PASSWORD: ${RUTAIA_DB_PASSWORD:?Define RUTAIA_DB_PASSWORD en .env}
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./database:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${RUTAIA_DB_USER} -d rutaia"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  qdrant:
+    image: qdrant/qdrant:v1.20.0
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6333:6333"
+    volumes:
+      - qdrant_storage:/qdrant/storage
+
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:2.45.7
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5678:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./n8n:/home/node/flujos
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  pgdata:
+  qdrant_storage:
+  n8n_data:

@@ -1,0 +1,22 @@
+# Secretos: solo se versiona la plantilla .env.example
+.env
+*.env
+!.env.example
+
+# Dependencias
+node_modules/
+
+# Compilados y salidas de Gradle / IDE
+build/
+.gradle/
+out/
+bin/
+target/
+*.class
+
+# Registros
+*.log
+
+# Editores
+.idea/
+.vscode/
