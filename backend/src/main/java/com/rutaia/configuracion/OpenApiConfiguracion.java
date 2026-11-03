@@ -26,7 +26,9 @@ public class OpenApiConfiguracion {
 				.addTagsItem(new Tag().name(Etiquetas.CATALOGO)
 						.description("Catálogo público de cursos activos (RF 04)"))
 				.addTagsItem(new Tag().name(Etiquetas.ADMINISTRACION)
-						.description("Registro, consulta, actualización y desactivación de cursos (RF 03)"));
+						.description("Registro, consulta, actualización y desactivación de cursos (RF 03)"))
+				.addTagsItem(new Tag().name(Etiquetas.CONSULTAS)
+						.description("Consultas en lenguaje natural y recomendación de cursos (RF 06–08, RF 13 y RF 14)"));
 	}
 
 	public static final class Etiquetas {
@@ -34,6 +36,7 @@ public class OpenApiConfiguracion {
 		public static final String ESTUDIANTES = "Estudiantes";
 		public static final String CATALOGO = "Catálogo de cursos";
 		public static final String ADMINISTRACION = "Administración de cursos";
+		public static final String CONSULTAS = "Consultas";
 
 		private Etiquetas() {
 		}

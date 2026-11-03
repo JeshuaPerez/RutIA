@@ -1,0 +1,194 @@
+Etapa 6 · 2026-11-02 22:33:21 (hora local UTC−6) · API http://localhost:8080/api · W-1 http://127.0.0.1:5678/webhook/rutaia-consulta-rag
+Comandos ejecutados con curl desde Git Bash en la raíz del repositorio; en PowerShell se usa curl.exe con los mismos argumentos.
+Antes de empezar: consulta 0 filas, recomendacion 0, recomendacion_fuente 0; última ejecución de W-1 en n8n: 48.
+
+=== E6-09 · Pregunta con solo espacios (n8n arriba)
+> curl -s -i -X POST "http://localhost:8080/api/consultas" --data-binary "@pruebas/api/etapa6-09-pregunta-espacios.json" -H "Content-Type: application/json"
+HTTP/1.1 400 
+Content-Type: application/json
+{"status":400,"error":"Bad Request","mensaje":"La solicitud contiene datos inválidos","ruta":"/api/consultas","fecha":"2026-11-02T22:33:21","detalles":[{"campo":"pregunta","mensaje":"es obligatoria"}]}
+
+=== E6-10 · estudianteId 999999
+> curl -s -i -X POST "http://localhost:8080/api/consultas" --data-binary "@pruebas/api/etapa6-10-estudiante-inexistente.json" -H "Content-Type: application/json"
+HTTP/1.1 404 
+Content-Type: application/json
+{"status":404,"error":"Not Found","mensaje":"No existe un estudiante con id 999999","ruta":"/api/consultas","fecha":"2026-11-02T22:33:22","detalles":[]}
+
+> psql: select count(*) as consultas from consulta;
+ consultas 
+-----------
+         0
+(1 row)
+
+> Últimas ejecuciones de W-1 en n8n (execution_entity):
+[{"id":48,"status":"success","startedAt":"2026-11-03 04:17:13.148"}]
+
+## n8n detenido: docker compose stop n8n (nada escucha en el 5678)
+
+=== E6-11 · Pregunta con solo espacios (n8n detenido)
+> curl -s -i -X POST "http://localhost:8080/api/consultas" --data-binary "@pruebas/api/etapa6-09-pregunta-espacios.json" -H "Content-Type: application/json"
+HTTP/1.1 400 
+Content-Type: application/json
+{"status":400,"error":"Bad Request","mensaje":"La solicitud contiene datos inválidos","ruta":"/api/consultas","fecha":"2026-11-02T22:33:40","detalles":[{"campo":"pregunta","mensaje":"es obligatoria"}]}
+(tiempo total: 0.008781 s)
+
+=== E6-12 · Temática con n8n detenido (contenedores)
+> curl -s -i -X POST "http://localhost:8080/api/consultas" --data-binary "@pruebas/api/etapa6-07-contenedores.json" -H "Content-Type: application/json"
+HTTP/1.1 201 
+Location: http://localhost:8080/api/consultas/1
+Content-Type: application/json
+{"consultaId":1,"estudianteId":7,"pregunta":"Necesito desplegar aplicaciones usando contenedores.","fecha":"2026-11-02T22:33:40","estado":"Error","respuesta":null,"mensaje":"No fue posible generar la recomendación en este momento. Intenta de nuevo más tarde.","recomendacionId":null,"fuentes":[]}
+(tiempo total: 0.262513 s)
+> psql: select id, estudiante_id, pregunta, fecha, estado, detalle_error from consulta order by id;
+ id | estudiante_id |                       pregunta                       |        fecha        | estado |            detalle_error             
+----+---------------+------------------------------------------------------+---------------------+--------+--------------------------------------
+  1 |             7 | Necesito desplegar aplicaciones usando contenedores. | 2026-11-02 22:33:40 | Error  | n8n no respondió: conexión rechazada
+(1 row)
+
+> psql: select count(*) as recomendaciones from recomendacion;
+ recomendaciones 
+-----------------
+               0
+(1 row)
+
+> docker compose start n8n
+
+## n8n de nuevo arriba (healthz/readiness 200; wget a openrouter.ai 200). Temáticas: 2 solicitudes a OpenRouter cada una (embedding + LLM)
+
+=== E6-01 · Páginas web (estudiante 1, Principiante, Desarrollo web)
+> curl -s -i -X POST "http://localhost:8080/api/consultas" --data-binary "@pruebas/api/etapa6-01-paginas-web.json" -H "Content-Type: application/json"
+HTTP/1.1 201 
+Location: http://localhost:8080/api/consultas/2
+Content-Type: application/json
+{"consultaId":2,"estudianteId":1,"pregunta":"Quiero aprender a crear páginas web.","fecha":"2026-11-02T22:34:20","estado":"Respondida","respuesta":"Hola, soy tu orientador de RutaIA. Para tu interés en desarrollo web y dado que eres principiante, te recomiendo seguir este orden de aprendizaje:\n\nPrimero, debes tomar Fundamentos de HTML y CSS para páginas web. Es el punto de partida ideal porque está diseñado para quienes no tienen experiencia previa y te enseñará la estructura y el estilo básico para crear sitios web.\n\nUna vez que domines las bases, te sugiero continuar con Diseño web responsive con Flexbox y Grid. Este curso te permitirá que tus páginas se vean profesionales en cualquier dispositivo, como celulares o tabletas.\n\nPosteriormente, para dar vida y dinamismo a tus sitios, el paso natural es JavaScript y manipulación del DOM, donde aprenderás a programar interactividad.\n\nFinalmente, si deseas especializarte en la protección de tus creaciones, puedes tomar Seguridad de aplicaciones web con OWASP Top 10.\n\nCon esta ruta cubrirás desde la creación básica hasta la interactividad y seguridad.","mensaje":null,"recomendacionId":1,"fuentes":[{"cursoId":1,"nombre":"Fundamentos de HTML y CSS para páginas web","descripcion":"Curso para quienes quieren aprender a crear páginas web desde cero sin experiencia previa en programación. Aprenderás la estructura de un documento HTML5, etiquetas semánticas, encabezados, párrafos, listas, enlaces, imágenes, tablas y formularios. Luego darás estilo a tus páginas con CSS: selectores, colores, tipografías, el modelo de caja, márgenes, rellenos y posicionamiento de elementos. Usarás Visual Studio Code, las herramientas de desarrollo del navegador y buenas prácticas de accesibilidad. Como proyecto práctico construirás un sitio web personal de varias páginas, con portafolio, formulario de contacto y menú de navegación, y lo publicarás gratis en GitHub Pages. Está dirigido a estudiantes, emprendedores y personas que desean hacer su propia página web o iniciar una carrera en desarrollo web frontend. Al terminar podrás maquetar sitios estáticos sencillos y tendrás la base necesaria para continuar con JavaScript.","categoria":"Desarrollo web","nivel":"Básico","duracionHoras":40,"similitud":0.593},{"cursoId":2,"nombre":"JavaScript y manipulación del DOM","descripcion":"Aprende a programar en JavaScript para dar interactividad y comportamiento dinámico a tus páginas web. El curso cubre variables, tipos de datos, condicionales, bucles, funciones, arreglos, objetos y módulos de JavaScript moderno (ES6 o posterior). Después trabajarás con el DOM para seleccionar y modificar elementos, responder a eventos como clics y envíos de formularios, validar datos en el navegador y crear contenido dinámico. También verás programación asíncrona con promesas, async y await, y el consumo de APIs REST con fetch y JSON. Como proyecto práctico desarrollarás una aplicación web de lista de tareas y un buscador que consulta una API pública y muestra los resultados en tarjetas. Va dirigido a quienes ya conocen HTML y CSS y quieren construir sitios web interactivos y aplicaciones frontend. Es el paso natural para convertirte en desarrollador web y prepararte para frameworks como React.","categoria":"Desarrollo web","nivel":"Intermedio","duracionHoras":50,"similitud":0.3843},{"cursoId":3,"nombre":"Diseño web responsive con Flexbox y Grid","descripcion":"Aprende a crear páginas web que se vean bien en celulares, tabletas y computadoras. Este curso de diseño web responsive enseña el enfoque mobile first, las media queries, unidades relativas, imágenes adaptables y tipografía fluida. Dominarás CSS Flexbox para alinear y distribuir elementos y CSS Grid para construir maquetaciones completas de sitios web con filas y columnas. También usarás variables CSS, buenas prácticas de accesibilidad y las herramientas del navegador para simular distintos dispositivos y depurar estilos. Como proyecto práctico diseñarás la página de inicio adaptable de una tienda en línea, con menú desplegable para móviles, galería de productos y pie de página. Está dirigido a personas que ya saben HTML y CSS básico y quieren que sus sitios web luzcan profesionales en cualquier pantalla. Es útil para desarrolladores frontend, diseñadores web y emprendedores que crean su propia página.","categoria":"Desarrollo web","nivel":"Intermedio","duracionHoras":30,"similitud":0.375},{"cursoId":4,"nombre":"Seguridad de aplicaciones web con OWASP Top 10","descripcion":"Aprende a proteger aplicaciones web frente a los ataques más comunes usando como guía el OWASP Top 10. El curso explica control de acceso roto, fallas criptográficas, inyección SQL, cross site scripting (XSS), diseño inseguro, configuraciones de seguridad incorrectas, componentes vulnerables y falsificación de solicitudes (CSRF y SSRF). Para cada vulnerabilidad verás cómo se explota, cómo detectarla y cómo corregirla con validación de entradas, consultas parametrizadas, escape de salida, cabeceras de seguridad HTTP, CORS bien configurado y gestión segura de secretos. Como proyecto práctico auditarás una aplicación web vulnerable de pruebas, documentarás los hallazgos y aplicarás las correcciones en el código. Está dirigido a desarrolladores web frontend y backend que quieren escribir código seguro y a quienes se inician en ciberseguridad. Sirve para reducir riesgos, proteger los datos de los usuarios y cumplir buenas prácticas de seguridad web.","categoria":"Desarrollo web","nivel":"Intermedio","duracionHoras":40,"similitud":0.3644}]}
+(tiempo total: 8.589956 s)
+
+=== E6-02 · Java con Spring Boot (estudiante 2, Intermedio, Desarrollo backend con Java)
+> curl -s -i -X POST "http://localhost:8080/api/consultas" --data-binary "@pruebas/api/etapa6-02-java-spring.json" -H "Content-Type: application/json"
+HTTP/1.1 201 
+Location: http://localhost:8080/api/consultas/3
+Content-Type: application/json
+{"consultaId":3,"estudianteId":2,"pregunta":"Necesito aprender Java para trabajar con Spring Boot.","fecha":"2026-11-02T22:34:35","estado":"Respondida","respuesta":"Hola. Como orientador de RutaIA, he diseñado una ruta de aprendizaje para tu objetivo de desarrollo backend con Java. Aunque tu nivel es Intermedio, te sugiero seguir este orden para asegurar una base sólida antes de avanzar hacia la especialización.\n\nPrimero, te recomiendo Programación orientada a objetos con Java. Aunque es de nivel Básico, es indispensable para dominar la sintaxis, colecciones y conceptos de POO necesarios para trabajar con Spring Boot.\n\nPosteriormente, debes cursar Desarrollo de APIs REST con Spring Boot. Este curso de nivel Intermedio te permitirá construir servicios web profesionales, manejar inyección de dependencias y arquitectura en capas.\n\nPara complementar tu perfil, te sugiero Persistencia de datos con Spring Data JPA, que te enseñará a conectar tus aplicaciones con bases de datos relacionales.\n\nFinalmente, si deseas especializarte en la protección de tus servicios, puedes tomar Autenticación y autorización segura con Spring Security, de nivel Avanzado. Con esta secuencia, cubrirás las competencias esenciales para el desarrollo backend empresarial.","mensaje":null,"recomendacionId":2,"fuentes":[{"cursoId":5,"nombre":"Programación orientada a objetos con Java","descripcion":"Curso para aprender Java desde cero y dominar la programación orientada a objetos (POO), base indispensable para trabajar con Spring Boot. Estudiarás la sintaxis de Java, tipos de datos, estructuras de control, métodos, arreglos y cadenas. Después aprenderás los pilares de la POO: clases, objetos, constructores, encapsulamiento, herencia, polimorfismo, clases abstractas e interfaces. También verás colecciones (List, Map, Set), manejo de excepciones, records, lambdas y streams de Java moderno. Trabajarás con el JDK 21, IntelliJ IDEA y Gradle, y escribirás pruebas unitarias con JUnit. Como proyecto práctico desarrollarás un sistema de gestión de biblioteca por consola con préstamos, usuarios y reportes. Está dirigido a principiantes en programación y a estudiantes que necesitan aprender Java para la universidad o para trabajar como desarrolladores backend. Al terminar estarás listo para crear aplicaciones empresariales con Spring Boot.","categoria":"Programación","nivel":"Básico","duracionHoras":60,"similitud":0.6286},{"cursoId":6,"nombre":"Desarrollo de APIs REST con Spring Boot","descripcion":"Aprende a construir APIs REST profesionales en Java con Spring Boot, el framework más usado para desarrollo backend empresarial. El curso cubre la creación de proyectos con Spring Initializr y Gradle, controladores con anotaciones, rutas, verbos HTTP, códigos de estado, validación de datos con Bean Validation, manejo global de errores y configuración por perfiles y variables de entorno. También verás inyección de dependencias, arquitectura en capas (controlador, servicio y repositorio), DTO, documentación con OpenAPI y Swagger, CORS y pruebas con JUnit, MockMvc y Postman. Como proyecto práctico desarrollarás la API de un sistema de reservas con endpoints para crear, consultar, actualizar y listar recursos. Está dirigido a programadores que ya conocen Java y la programación orientada a objetos y quieren trabajar como desarrolladores backend. Sirve para crear servicios web y microservicios que consumen aplicaciones web y móviles.","categoria":"Programación","nivel":"Intermedio","duracionHoras":50,"similitud":0.5746},{"cursoId":7,"nombre":"Persistencia de datos con Spring Data JPA","descripcion":"Aprende a conectar aplicaciones Java con Spring Boot a bases de datos relacionales usando Spring Data JPA e Hibernate. El curso explica el mapeo objeto relacional (ORM), entidades, claves primarias, relaciones uno a muchos y muchos a muchos, carga perezosa y ansiosa, y transacciones. Crearás repositorios, consultas derivadas por nombre de método, consultas JPQL y nativas, paginación y ordenamiento. También verás cómo validar el esquema existente con ddl-auto en modo validate, cómo evitar el problema N+1 y cómo probar la capa de datos con Testcontainers y PostgreSQL. Como proyecto práctico construirás la capa de persistencia de una tienda en línea con productos, pedidos y clientes. Está dirigido a desarrolladores Java que ya crean APIs REST con Spring Boot y necesitan guardar y consultar información en una base de datos. Es fundamental para cualquier trabajo de desarrollo backend con Java.","categoria":"Programación","nivel":"Intermedio","duracionHoras":40,"similitud":0.5112},{"cursoId":8,"nombre":"Autenticación y autorización segura con Spring Security","descripcion":"Aprende a proteger aplicaciones y APIs web implementando autenticación y autorización seguras con Spring Security. El curso cubre el almacenamiento seguro de contraseñas con BCrypt o Argon2, inicio de sesión, sesiones y cookies seguras, tokens JWT, OAuth 2.0 y OpenID Connect, control de acceso basado en roles y permisos, y protección contra CSRF, fuerza bruta y secuestro de sesión. También verás buenas prácticas para el manejo de secretos y claves, expiración y revocación de tokens, y autenticación multifactor. Como proyecto práctico asegurarás una API REST de Spring Boot con registro de usuarios, login con JWT, rutas protegidas por rol y pruebas automatizadas de seguridad. Está dirigido a desarrolladores backend con experiencia en Java y Spring Boot que quieren aprender a proteger aplicaciones web. Sirve para evitar accesos no autorizados y robo de cuentas en sistemas reales.","categoria":"Programación","nivel":"Avanzado","duracionHoras":40,"similitud":0.3974}]}
+(tiempo total: 7.374041 s)
+
+=== E6-07 · Contenedores (estudiante 7, Intermedio, DevOps y contenedores)
+> curl -s -i -X POST "http://localhost:8080/api/consultas" --data-binary "@pruebas/api/etapa6-07-contenedores.json" -H "Content-Type: application/json"
+HTTP/1.1 201 
+Location: http://localhost:8080/api/consultas/4
+Content-Type: application/json
+{"consultaId":4,"estudianteId":7,"pregunta":"Necesito desplegar aplicaciones usando contenedores.","fecha":"2026-11-02T22:34:47","estado":"Respondida","respuesta":"Hola, soy tu orientador académico de RutaIA. Para tu objetivo de desplegar aplicaciones usando contenedores y tu interés en DevOps, te recomiendo seguir este orden de aprendizaje:\n\nPrimero, te sugiero Contenedores con Docker para desplegar aplicaciones. Al ser de nivel Intermedio, es el punto de partida ideal para dominar el empaquetado, el uso de Dockerfile, Docker Compose y la persistencia de datos, lo cual es fundamental para cualquier despliegue.\n\nSegundo, te recomiendo Integración y entrega continua con contenedores. Este curso de nivel Intermedio te permitirá avanzar hacia DevOps al aprender a automatizar la construcción y el despliegue mediante pipelines de CI/CD, integrando lo aprendido con Docker.\n\nFinalmente, para completar tu perfil, puedes tomar Orquestación de contenedores con Kubernetes. Este curso de nivel Avanzado es el paso lógico para aprender a escalar y administrar aplicaciones en entornos de alta disponibilidad.\n\nCon estos tres cursos cubres desde la creación del contenedor hasta la automatización y la orquestación profesional.","mensaje":null,"recomendacionId":3,"fuentes":[{"cursoId":24,"nombre":"Contenedores con Docker para desplegar aplicaciones","descripcion":"Aprende a empaquetar y desplegar aplicaciones usando contenedores con Docker, la herramienta estándar de la industria para ejecutar software de forma igual en cualquier máquina. El curso cubre imágenes, contenedores, Dockerfile, capas, construcción multietapa, registros como Docker Hub, puertos, variables de entorno, volúmenes para persistir datos y redes entre contenedores. Después usarás Docker Compose para levantar aplicaciones de varios servicios, por ejemplo un backend, una base de datos PostgreSQL y una herramienta de automatización, con healthchecks y secretos fuera del código. También verás buenas prácticas de seguridad y tamaño de imágenes. Como proyecto práctico contenerizarás una aplicación web con su base de datos y la desplegarás en un servidor en la nube. Está dirigido a desarrolladores y estudiantes de sistemas que quieren desplegar aplicaciones de forma confiable. Es el primer paso hacia DevOps, Kubernetes y la nube.","categoria":"Herramientas tecnológicas","nivel":"Intermedio","duracionHoras":30,"similitud":0.6088},{"cursoId":26,"nombre":"Integración y entrega continua con contenedores","descripcion":"Aprende a automatizar la construcción, las pruebas y el despliegue de aplicaciones con integración continua y entrega continua (CI/CD) basadas en contenedores. El curso cubre la creación de pipelines con GitHub Actions y GitLab CI, la ejecución automática de pruebas en cada cambio, el análisis de calidad y seguridad del código, la construcción de imágenes Docker, su publicación en un registro de contenedores y el despliegue automático en un servidor o en Kubernetes. También verás manejo de secretos en los pipelines, ambientes de pruebas y producción, versionado semántico y estrategias de despliegue como blue green y canary. Como proyecto práctico configurarás un pipeline completo que prueba, construye y despliega una API en contenedores cada vez que se integra una rama. Está dirigido a desarrolladores que ya conocen Git y Docker y quieren adoptar prácticas DevOps. Sirve para entregar software más rápido y con menos errores.","categoria":"Herramientas tecnológicas","nivel":"Intermedio","duracionHoras":35,"similitud":0.484},{"cursoId":25,"nombre":"Orquestación de contenedores con Kubernetes","descripcion":"Aprende a desplegar, escalar y administrar aplicaciones en contenedores con Kubernetes, el orquestador más usado en la nube. El curso cubre la arquitectura de un clúster, pods, deployments, réplicas, services, ingress, ConfigMaps, Secrets, volúmenes persistentes, namespaces y sondas de salud. Practicarás con kubectl, Minikube o kind en tu computador, y aprenderás a escalar automáticamente según la carga, actualizar aplicaciones sin caídas y revertir versiones. También verás empaquetado con Helm, monitoreo básico con Prometheus y Grafana, y nociones de servicios administrados como EKS, AKS y GKE. Como proyecto práctico desplegarás en Kubernetes una aplicación de microservicios con frontend, API y base de datos, con escalado y actualización continua. Está dirigido a desarrolladores y administradores de sistemas que ya usan Docker y quieren trabajar en DevOps o ingeniería de plataformas. Sirve para operar aplicaciones con alta disponibilidad.","categoria":"Herramientas tecnológicas","nivel":"Avanzado","duracionHoras":45,"similitud":0.4204}]}
+(tiempo total: 7.943464 s)
+
+## Cocina: 1 solicitud a OpenRouter (solo embedding; W-1 no llama al LLM)
+
+=== E6-08 · Cocina italiana (estudiante 8)
+> curl -s -i -X POST "http://localhost:8080/api/consultas" --data-binary "@pruebas/api/etapa6-08-cocina.json" -H "Content-Type: application/json"
+HTTP/1.1 201 
+Location: http://localhost:8080/api/consultas/5
+Content-Type: application/json
+{"consultaId":5,"estudianteId":8,"pregunta":"Quiero aprender cocina italiana.","fecha":"2026-11-02T22:35:03","estado":"Sin resultados","respuesta":null,"mensaje":"No encontramos cursos del catálogo relacionados con tu necesidad. Intenta describirla con otras palabras.","recomendacionId":null,"fuentes":[]}
+(tiempo total: 0.831684 s)
+
+## Estado de la BD al terminar
+> psql: select id, estudiante_id, left(pregunta,55) as pregunta, fecha, estado, detalle_error from consulta order by id;
+ id | estudiante_id |                       pregunta                        |        fecha        |     estado     |            detalle_error             
+----+---------------+-------------------------------------------------------+---------------------+----------------+--------------------------------------
+  1 |             7 | Necesito desplegar aplicaciones usando contenedores.  | 2026-11-02 22:33:40 | Error          | n8n no respondió: conexión rechazada
+  2 |             1 | Quiero aprender a crear páginas web.                  | 2026-11-02 22:34:20 | Respondida     | 
+  3 |             2 | Necesito aprender Java para trabajar con Spring Boot. | 2026-11-02 22:34:35 | Respondida     | 
+  4 |             7 | Necesito desplegar aplicaciones usando contenedores.  | 2026-11-02 22:34:47 | Respondida     | 
+  5 |             8 | Quiero aprender cocina italiana.                      | 2026-11-02 22:35:03 | Sin resultados | 
+(5 rows)
+
+> psql: select id, consulta_id, left(respuesta,60) as respuesta, length(respuesta) as largo, fecha from recomendacion order by id;
+ id | consulta_id |                          respuesta                           | largo |        fecha        
+----+-------------+--------------------------------------------------------------+-------+---------------------
+  1 |           2 | Hola, soy tu orientador de RutaIA. Para tu interés en desarr |   965 | 2026-11-02 22:34:29
+  2 |           3 | Hola. Como orientador de RutaIA, he diseñado una ruta de apr |  1093 | 2026-11-02 22:34:42
+  3 |           4 | Hola, soy tu orientador académico de RutaIA. Para tu objetiv |  1064 | 2026-11-02 22:34:55
+(3 rows)
+
+> psql: select f.id, f.recomendacion_id, f.curso_id, c.nombre, c.activo, f.similitud from recomendacion_fuente f join curso c on c.id = f.curso_id order by f.recomendacion_id, f.similitud desc;
+ id | recomendacion_id | curso_id |                         nombre                          | activo | similitud 
+----+------------------+----------+---------------------------------------------------------+--------+-----------
+  1 |                1 |        1 | Fundamentos de HTML y CSS para páginas web              | t      |     0.593
+  2 |                1 |        2 | JavaScript y manipulación del DOM                       | t      |    0.3843
+  3 |                1 |        3 | Diseño web responsive con Flexbox y Grid                | t      |     0.375
+  4 |                1 |        4 | Seguridad de aplicaciones web con OWASP Top 10          | t      |    0.3644
+  5 |                2 |        5 | Programación orientada a objetos con Java               | t      |    0.6286
+  6 |                2 |        6 | Desarrollo de APIs REST con Spring Boot                 | t      |    0.5746
+  7 |                2 |        7 | Persistencia de datos con Spring Data JPA               | t      |    0.5112
+  8 |                2 |        8 | Autenticación y autorización segura con Spring Security | t      |    0.3974
+  9 |                3 |       24 | Contenedores con Docker para desplegar aplicaciones     | t      |    0.6088
+ 10 |                3 |       26 | Integración y entrega continua con contenedores         | t      |     0.484
+ 11 |                3 |       25 | Orquestación de contenedores con Kubernetes             | t      |    0.4204
+(11 rows)
+
+> psql: select estado, count(*) from consulta group by estado order by estado;
+     estado     | count 
+----------------+-------
+ Error          |     1
+ Respondida     |     3
+ Sin resultados |     1
+(3 rows)
+
+> Últimas ejecuciones de W-1 en n8n (execution_entity):
+[{"id":53,"status":"success","startedAt":"2026-11-03 04:35:03.806"},{"id":52,"status":"success","startedAt":"2026-11-03 04:34:47.484"},{"id":51,"status":"success","startedAt":"2026-11-03 04:34:35.451"},{"id":50,"status":"success","startedAt":"2026-11-03 04:34:22.737"},{"id":48,"status":"success","startedAt":"2026-11-03 04:17:13.148"}]
+
+## Logs de la API (SLF4J)
+2026-11-02T22:33:40.804-06:00 ConsultaServicio: Consulta 1 finalizada: estado=Error, n8n=98 ms, motivo=n8n no respondió: conexión rechazada
+2026-11-02T22:34:29.426-06:00 ConsultaServicio: Consulta 2 finalizada: estado=Respondida, n8n=8440 ms, fuentes=4
+2026-11-02T22:34:42.703-06:00 ConsultaServicio: Consulta 3 finalizada: estado=Respondida, n8n=7272 ms, fuentes=4
+2026-11-02T22:34:55.320-06:00 ConsultaServicio: Consulta 4 finalizada: estado=Respondida, n8n=7849 ms, fuentes=3
+2026-11-02T22:35:04.538-06:00 ConsultaServicio: Consulta 5 finalizada: estado=Sin resultados, n8n=752 ms, fuentes=0
+
+## Verificación complementaria con un n8n simulado (0 solicitudes a OpenRouter)
+Segunda instancia de la API en el puerto 8081 (java -jar build/libs/rutaia-api-0.0.1-SNAPSHOT.jar --server.port=8081) con
+RUTAIA_N8N_WEBHOOK_URL=http://127.0.0.1:5699/ y RUTAIA_N8N_TIMEOUT_SEGUNDOS=2, contra un servidor Node que devuelve
+respuestas fijas según la pregunta (estudiante 1). El simulador y la instancia 8081 se detuvieron al terminar; las 12 filas de
+consulta (ids 6–17), la recomendación 4 y sus 2 fuentes se borraron después para dejar la BD solo con los casos reales.
+Respuesta del simulador por caso: valido = fuentes [2 (0.38431), 1 (0.59299)] desordenadas y con 5 decimales; inexistente = fuentes 1 y 999999;
+inactivo = fuente 29; respuesta-vacia = respuesta "   "; consulta-id = consultaId + 1000; repetido = cursoId 1 dos veces;
+seis-fuentes = 6 fuentes; similitud = 1.2; estado-error = HTTP 502 con estado Error; error-200 = HTTP 200 con estado Error;
+ilegible = HTTP 200 text/html; lento = responde a los 5 s (read timeout 2 s).
+
+caso-valido → [HTTP 201] consultaId=6 estado=Respondida recomendacionId=4 fuentes=[[1,0.593],[2,0.3843]] mensaje=null
+caso-inexistente → [HTTP 201] consultaId=7 estado=Error recomendacionId=null fuentes=[] mensaje=No fue posible generar la…
+caso-inactivo → [HTTP 201] consultaId=8 estado=Error recomendacionId=null fuentes=[] mensaje=No fue posible generar la…
+caso-respuesta-vacia → [HTTP 201] consultaId=9 estado=Error recomendacionId=null fuentes=[] mensaje=No fue posible generar la…
+caso-consulta-id → [HTTP 201] consultaId=10 estado=Error recomendacionId=null fuentes=[] mensaje=No fue posible generar la…
+caso-repetido → [HTTP 201] consultaId=11 estado=Error recomendacionId=null fuentes=[] mensaje=No fue posible generar la…
+caso-seis-fuentes → [HTTP 201] consultaId=12 estado=Error recomendacionId=null fuentes=[] mensaje=No fue posible generar la…
+caso-similitud → [HTTP 201] consultaId=13 estado=Error recomendacionId=null fuentes=[] mensaje=No fue posible generar la…
+caso-estado-error → [HTTP 201] consultaId=14 estado=Error recomendacionId=null fuentes=[] mensaje=No fue posible generar la…
+caso-error-200 → [HTTP 201] consultaId=15 estado=Error recomendacionId=null fuentes=[] mensaje=No fue posible generar la…
+caso-ilegible → [HTTP 201] consultaId=16 estado=Error recomendacionId=null fuentes=[] mensaje=No fue posible generar la…
+caso-lento → [HTTP 201] consultaId=17 estado=Error recomendacionId=null fuentes=[] mensaje=No fue posible generar la…
+
+ id |       pregunta       |   estado   |                               detalle_error                               
+----+----------------------+------------+---------------------------------------------------------------------------
+  6 | caso-valido          | Respondida | 
+  7 | caso-inexistente     | Error      | La fuente con cursoId 999999 no existe en PostgreSQL
+  8 | caso-inactivo        | Error      | La fuente con cursoId 29 está inactiva en PostgreSQL
+  9 | caso-respuesta-vacia | Error      | n8n devolvió Respondida con la respuesta vacía
+ 10 | caso-consulta-id     | Error      | n8n devolvió consultaId 1010, distinto del enviado 10
+ 11 | caso-repetido        | Error      | n8n devolvió el cursoId 1 repetido en las fuentes
+ 12 | caso-seis-fuentes    | Error      | n8n devolvió Respondida con 6 fuentes; se esperan de 1 a 5
+ 13 | caso-similitud       | Error      | n8n devolvió la similitud 1.2 para el cursoId 1; debe estar entre 0 y 1
+ 14 | caso-estado-error    | Error      | n8n respondió HTTP 502: OpenRouter (/chat/completions) respondió HTTP 429
+ 15 | caso-error-200       | Error      | n8n devolvió estado Error: falla simulada
+ 16 | caso-ilegible        | Error      | n8n respondió HTTP 200 con un cuerpo ilegible: <html>no es JSON</html>
+ 17 | caso-lento           | Error      | n8n no respondió: timeout de lectura (2 s)
+(12 rows)
+
+ id | consulta_id |  respuesta   | curso_id |                   nombre                   | similitud 
+----+-------------+--------------+----------+--------------------------------------------+-----------
+  4 |           6 | Texto plano. |        1 | Fundamentos de HTML y CSS para páginas web |     0.593
+  4 |           6 | Texto plano. |        2 | JavaScript y manipulación del DOM          |    0.3843
+(2 rows)
+
+ pendientes | total 
+------------+-------
+          0 |    17
+(1 row)
+
