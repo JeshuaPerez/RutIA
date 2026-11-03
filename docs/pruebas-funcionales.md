@@ -197,3 +197,67 @@ El servicio de E-11 usa tres pasos separados: `ConsultaTransacciones.registrarPe
 Las otras reglas de C8 siguen el mismo camino: estado Error o fuera de C5, 0 o más de 5 fuentes, cursoId ausente o repetido y similitud fuera de [0, 1] (`ConsultaServicio.validar`); conexión rechazada, timeout, HTTP no-2xx y cuerpo ilegible (`ClienteN8n`, `FallaN8nException`). Cualquier otra excepción al guardar el resultado (`ConsultaServicio.java:67`) también deja la consulta en Error, para que ninguna petición termine en Pendiente. La verificación con el n8n simulado (E6-11) confirmó los cuatro casos de la tabla y los demás.
 
 No se ejecutaron en esta etapa, para cuidar la cuota, las temáticas `etapa6-03` a `etapa6-06` (quedan para la integración), ni el timeout real de 90 s contra n8n (el timeout de lectura se comprobó con el simulado y 2 s).
+
+## Etapa 7 — Historial, detalle, calificaciones y estadísticas (E-04, E-12, E-13, E-14)
+
+Fecha: 2026-11-02 · Máquina: Windows 11 Home 10.0.26200 · Java 21.0.13 (Temurin) · Spring Boot 4.1.2 · springdoc-openapi 3.2.0 · BD con las consultas 1–5 de la Etapa 6 (1 Error, 3 Respondida con las recomendaciones 1–3, 1 Sin resultados) y sin calificaciones. Las pruebas se ejecutaron contra el jar de esta etapa en el puerto 8081 (`java -jar build/libs/rutaia-api-0.0.1-SNAPSHOT.jar --server.port=8081 --logging.level.org.hibernate.SQL=debug`, desde `backend/`), porque en el 8080 seguía corriendo el `bootRun` de la Etapa 6; el log de SQL sirve para contar las sentencias de cada petición. Con `bootRun` en el 8080 los comandos son los mismos cambiando el puerto. Comandos con `curl` desde Git Bash en la raíz del repositorio; en PowerShell son idénticos cambiando `curl` por `curl.exe`: `curl.exe -s -i -X POST "http://localhost:8080/api/recomendaciones/1/calificacion" --data-binary "@pruebas/api/<archivo>.json" -H "Content-Type: application/json"`. Cuerpos en `pruebas/api/etapa7-01` a `etapa7-08`. SQL de control en `pruebas/bd/etapa7-control-estadisticas.sql`, y datos temporales en `pruebas/bd/etapa7-datos-temporales.sql` y `etapa7-limpieza.sql` (se ejecutan en bash con `docker compose exec -T postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < pruebas/bd/<archivo>.sql`; en PowerShell, con `docker compose cp` y `psql -f`, porque PowerShell 5.1 no admite `<`). Salida completa en `docs/evidencias/etapa7-api.txt`.
+
+| ID | Requisito | Pasos | Esperado | Obtenido | Evidencia | Solicitudes a OpenRouter |
+|---|---|---|---|---|---|---|
+| E7-01 | RF 02 / RF 16 historial, orden y mensajes fijos | GET /api/estudiantes/7/historial | 200; fecha desc; Respondida con resumen y cursos por similitud; Error con MSG_ERROR | OK: consulta 4 (22:34:47, Respondida, cursos 24, 26, 25) antes que la 1 (22:33:40, Error, resumen = MSG_ERROR, `cursosRecomendados` []) | `etapa7-api.txt` (E7-02) | 0 |
+| E7-02 | RF 16 resumen de hasta 160 caracteres con «…» | GET /api/estudiantes/1/historial (respuesta de 965 caracteres) | Los primeros 160 caracteres más «…» | OK: 161 caracteres, igual a `left(respuesta, 160) \|\| '…'` en psql | `etapa7-api.txt` (E7-03) | 0 |
+| E7-03 | RF 16 Sin resultados | GET /api/estudiantes/8/historial | resumen = MSG_SIN_RESULTADOS, cursos [] | OK | `etapa7-api.txt` (E7-04) | 0 |
+| E7-04 | RF 16 límite exacto del resumen y Pendiente | Datos temporales del estudiante 3: Pendiente, Respondida de 160 caracteres y Respondida de 161, con fuentes insertadas en orden de similitud ascendente; GET historial y GET /api/consultas/{id} de la Pendiente | 160 sin «…»; 161 cortada a 160 más «…»; Pendiente con MSG_PENDIENTE; cursos por similitud desc | OK: resúmenes de 160 (sin «…») y 161 caracteres; Pendiente «Consulta en proceso.» en E-04 y como `mensaje` en E-12; cursos 9 (0,52) antes que 10 (0,41). Los datos se borraron al terminar | `etapa7-api.txt` (E7-28, E7-29) | 0 |
+| E7-05 | RF 02 estudiante sin consultas | GET /api/estudiantes/3/historial | 200 [] | OK | `etapa7-api.txt` (E7-05) | 0 |
+| E7-06 | RF 02 «Responder adecuadamente cuando el estudiante no exista» | GET /api/estudiantes/999999/historial; /abc/historial | 404; 400 | OK: 404 «No existe un estudiante con id 999999»; 400 detalle `id` «debe ser un número entero» | `etapa7-api.txt` (E7-06, E7-07) | 0 |
+| E7-07 | Eficiencia de E-04 (sin N+1) | Contar las sentencias de `org.hibernate.SQL` en el log | Cantidad fija, sin una por consulta | OK: 4 sentencias (existe el estudiante, consultas, recomendaciones, fuentes con JOIN FETCH del curso) para 2 consultas; 2 para un estudiante sin consultas | `etapa7-api.txt` (E7-08) | 0 |
+| E7-08 | RF 16 detalle = E-11 + calificación | GET /api/consultas/1 a /5 y comparación con las respuestas de E-11 guardadas en `etapa6-api.txt` | Mismos 9 campos y valores, más `calificacion` | OK: 5 de 5 iguales (Error, 3 Respondida, Sin resultados), `calificacion` null | `etapa7-api.txt` (E7-09) | 0 |
+| E7-09 | E-12 inexistente / id inválido y eficiencia | GET /api/consultas/999999; /abc; contar SQL | 404; 400; sin N+1 | OK: 404 «No existe una consulta con id 999999»; 400; 4 sentencias para una Respondida (consulta, recomendación, fuentes con JOIN FETCH, calificación) y 1 para Sin resultados | `etapa7-api.txt` (E7-11 a E7-13) | 0 |
+| E7-10 | RF 17 puntuación de 1 a 5 con o sin comentario | POST /api/recomendaciones/1/calificacion con `etapa7-01` (5 y comentario); /2 con `etapa7-02` (4, sin comentario); /3 con `etapa7-08` (4 y comentario de exactamente 500 caracteres) | 201 con `Location` | OK: 201, 201 y 201; `Location: …/api/recomendaciones/{id}/calificacion`; `comentario` null en la 2; 500 caracteres guardados en la 3 | `etapa7-api.txt` (E7-14, E7-15, E7-25) | 0 |
+| E7-11 | Regla «solamente … valores entre uno y cinco»; comentario ≤ 500 | POST /3 con puntuación 0, 6, 3.5, ausente; comentario de 501; JSON mal formado | 400 sin crear la calificación | OK: 400 «debe estar entre 1 y 5» (0 y 6), «tiene un tipo o formato inválido» (3.5), «es obligatoria» (ausente), `comentario` «debe tener como máximo 500 caracteres», «El cuerpo de la solicitud no es un JSON válido»; la recomendación 3 seguía con 0 calificaciones | `etapa7-api.txt` (E7-16 a E7-21) | 0 |
+| E7-12 | E-13 recomendación inexistente | POST /999999/calificacion; /abc/calificacion | 404; 400 | OK: 404 «No existe una recomendación con id 999999»; 400 | `etapa7-api.txt` (E7-22, E7-23) | 0 |
+| E7-13 | RF 17 «una sola calificación por recomendación» | Segundo POST a /1 | 409 | OK: 409 «La recomendación 1 ya fue calificada», `detalles` [] | `etapa7-api.txt` (E7-24) | 0 |
+| E7-14 | Ídem con concurrencia y con la restricción única | 10 POST simultáneos a una recomendación temporal; POST mientras psql tiene otra calificación de la misma recomendación sin confirmar | Una sola calificación; el resto 409, también si salta `uq_calificacion_recomendacion` | OK: 1×201 y 9×409 (los 9 los detectó la comprobación previa); el POST concurrente con psql esperó el commit y respondió 409 tras `duplicate key value violates unique constraint "uq_calificacion_recomendacion"` en el log | `etapa7-api.txt` (E7-31, E7-32) | 0 |
+| E7-15 | E-12 con calificación | GET /api/consultas/2 y /3 | `calificacion` {puntuacion, comentario, fecha} | OK: {5, «La ruta me sirvió…», fecha} y {4, null, fecha} | `etapa7-api.txt` (E7-26) | 0 |
+| E7-16 | RF 18 estadísticas sin calificaciones | GET /api/estadisticas antes de calificar; SQL de control | Coincide con count; promedio null | OK: 5, 3, 1, `promedioCalificaciones` null; psql 5, 3, 1 y avg NULL con 0 calificaciones | `etapa7-api.txt` (E7-01) | 0 |
+| E7-17 | RF 18 promedio con 2 decimales | GET /api/estadisticas con calificaciones 5, 4 y 4; SQL de control | 4.33 | OK: 4.33 en la API y `round(avg(puntuacion)::numeric, 2)` = 4.33 | `etapa7-api.txt` (E7-27, E7-33) | 0 |
+| E7-18 | RF 18 desempate del curso más recomendado | Con los datos de la Etapa 6 (11 cursos con 1 fila cada uno) y con los temporales (cursos 9 y 10 con 2 filas cada uno) | Gana el menor cursoId | OK: curso 1 con `vecesRecomendado` 1; con el empate en 2, curso 9 («Consultas SQL para análisis de datos»); tras la limpieza, de nuevo el 1. Coincide con el SQL de control en los tres casos | `etapa7-api.txt` (E7-01, E7-30, E7-33) | 0 |
+| E7-19 | 8.2 CORS | Preflight OPTIONS de E-13 desde `http://localhost:5500`; GET de E-14 desde `http://127.0.0.1:5500` y desde `http://otro.test` | Permitido solo para los orígenes de `RUTAIA_CORS_ORIGINS` | OK: 200 con `Access-Control-Allow-Origin` y `Allow-Headers: Content-Type`; 200 con la cabecera; 403 «Invalid CORS request» | `etapa7-api.txt` (E7-34) | 0 |
+| E7-20 | Rúbrica «evidencia de Swagger» / 8.2 | `curl -s http://localhost:8081/v3/api-docs` guardado en `docs/openapi.json` (con sangría) | E-01 a E-14 con etiquetas, ejemplos y códigos | OK: 14 operaciones (E-01 a E-14), 7 etiquetas (las 3 nuevas: «Historial y detalle», «Calificaciones», «Estadísticas»), 60 ejemplos JSON válidos; E-13 con 201, 400, 404, 409 y 500 | `docs/openapi.json` | 0 |
+| E7-21 | Rúbrica: capturas de Swagger UI | Se pidieron capturas ejecutando E-11, E-04, E-13 y E-14 en http://localhost:8080/swagger-ui.html | Capturas con la petición y la respuesta | PARCIAL: el usuario entregó una sola captura, la documentación de respuestas de E-02 (`GET /api/estudiantes`: 200 «Lista de estudiantes» con su ejemplo y 500 «Error inesperado» con el cuerpo de C6), sin ejecutar. No hay capturas de E-11, E-04, E-13 ni E-14; su evidencia es `docs/openapi.json` y `etapa7-api.txt` | `etapa7-swagger-e02-respuestas.png` | 0 |
+
+Total de solicitudes a OpenRouter en la Etapa 7: **0**. Presupuesto: ≤ 4.
+
+### Consultas SQL de control de las estadísticas
+
+Contenido de `pruebas/bd/etapa7-control-estadisticas.sql`. Cada valor de GET /api/estadisticas debe coincidir con la fila correspondiente:
+
+```sql
+-- totalConsultas, consultasRespondidas, consultasSinResultados
+SELECT count(*)                                         AS total_consultas,
+       count(*) FILTER (WHERE estado = 'Respondida')     AS consultas_respondidas,
+       count(*) FILTER (WHERE estado = 'Sin resultados') AS consultas_sin_resultados
+FROM consulta;
+
+-- promedioCalificaciones (NULL si no hay calificaciones)
+SELECT round(avg(puntuacion)::numeric, 2) AS promedio_calificaciones, count(*) AS calificaciones
+FROM calificacion;
+
+-- cursoMasRecomendado: la primera fila
+SELECT f.curso_id, c.nombre, count(*) AS veces_recomendado
+FROM recomendacion_fuente f
+JOIN curso c ON c.id = f.curso_id
+GROUP BY f.curso_id, c.nombre
+ORDER BY veces_recomendado DESC, f.curso_id ASC
+LIMIT 5;
+```
+
+En la API, los tres conteos salen de una sola consulta JPQL con `count(case when …)` (`ConsultaRepositorio.contarPorEstado`), el promedio de `avg(c.puntuacion)` redondeado a 2 decimales con `HALF_UP` (`EstadisticasServicio.java:35`), y el curso de un `group by … order by count(f) desc, cu.id asc` limitado a 1 fila (`RecomendacionFuenteRepositorio.buscarMasRecomendados`). Ninguna carga entidades.
+
+### Decisiones donde el contrato no dice nada
+
+- **Location de E-13.** C6 pide `Location` en todo 201, pero el contrato no define un GET de la calificación. La cabecera apunta a la misma URL del POST (`/api/recomendaciones/{id}/calificacion`), porque la calificación es un subrecurso único de la recomendación; esa URL no responde a GET.
+- **Comentario vacío.** El comentario se guarda sin espacios al inicio o al final, y uno vacío o de solo espacios se guarda como null (igual que la pregunta en E-11, que también se recorta). La longitud máxima se comprueba después del recorte.
+- **Resumen de 160 caracteres.** Se siguió C7 al pie de la letra: 160 caracteres de la respuesta más «…», es decir, 161 en total cuando se corta. Se cuentan caracteres Unicode (code points), no bytes ni unidades UTF-16, y no se recortan los saltos de línea ni los espacios del corte.
+- **Desempate del historial.** Las fechas tienen precisión de segundos; dos consultas del mismo segundo se ordenan por id descendente.
+- **E-11 sin cambios de comportamiento.** En `ConsultaControlador` la etiqueta «Consultas» pasó de la clase al método de E-11 (`ConsultaControlador.java:46`), porque springdoc suma la etiqueta de la clase a la del método y E-12 debe aparecer solo en «Historial y detalle» (`:85`). El `operationId`, la ruta, los ejemplos y el código de E-11 no cambiaron.

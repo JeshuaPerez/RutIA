@@ -114,6 +114,7 @@ Base `http://localhost:8080/api`, JSON UTF-8. Toda respuesta 4xx/5xx usa el cuer
 | E-01 | `POST /api/estudiantes` | 201 Estudiante + `Location` | 400 · 409 correo ya registrado |
 | E-02 | `GET /api/estudiantes` | 200 lista, id asc | — |
 | E-03 | `GET /api/estudiantes/{id}` | 200 Estudiante | 404 |
+| E-04 | `GET /api/estudiantes/{id}/historial` | 200 lista de HistorialItem, fecha desc (`[]` si no hay consultas) | 404 estudiante inexistente |
 | E-05 | `GET /api/cursos?categoria=&nivel=` | 200 cursos activos, id asc | 400 nivel inválido |
 | E-06 | `POST /api/admin/cursos` | 201 CursoAdmin (`activo` = true) + `Location` | 400 |
 | E-07 | `GET /api/admin/cursos` | 200 activos e inactivos, id asc | — |
@@ -121,6 +122,9 @@ Base `http://localhost:8080/api`, JSON UTF-8. Toda respuesta 4xx/5xx usa el cuer
 | E-09 | `PUT /api/admin/cursos/{id}` | 200 CursoAdmin (`activo` no cambia) | 400 · 404 |
 | E-10 | `PATCH /api/admin/cursos/{id}/desactivar` | 200 CursoAdmin (`activo` = false; idempotente) | 404 |
 | E-11 | `POST /api/consultas` | 201 ConsultaResultado + `Location`, en cualquier estado final (Respondida, Sin resultados o Error) | 400 · 404 estudiante inexistente (sin crear la consulta ni llamar a n8n) |
+| E-12 | `GET /api/consultas/{id}` | 200 ConsultaDetalle (lo de E-11 más `calificacion`) | 404 |
+| E-13 | `POST /api/recomendaciones/{id}/calificacion` | 201 Calificacion + `Location` (puntuación entera de 1 a 5, comentario opcional ≤ 500) | 400 · 404 · 409 ya calificada |
+| E-14 | `GET /api/estadisticas` | 200 Estadisticas (totales, promedio con 2 decimales o null, curso más recomendado o null) | — |
 
 Ejemplos desde la raíz del repositorio (cuerpos en `pruebas/api/`). PowerShell:
 
@@ -129,6 +133,9 @@ curl.exe -s -i -X POST "http://localhost:8080/api/estudiantes" --data-binary "@p
 curl.exe -s "http://localhost:8080/api/cursos?categoria=Desarrollo%20web&nivel=B%C3%A1sico"
 curl.exe -s -X PATCH "http://localhost:8080/api/admin/cursos/1/desactivar"
 curl.exe -s -i -X POST "http://localhost:8080/api/consultas" --data-binary "@pruebas/api/etapa6-01-paginas-web.json" -H "Content-Type: application/json"
+curl.exe -s "http://localhost:8080/api/estudiantes/1/historial"
+curl.exe -s -i -X POST "http://localhost:8080/api/recomendaciones/1/calificacion" --data-binary "@pruebas/api/etapa7-01-calificacion-con-comentario.json" -H "Content-Type: application/json"
+curl.exe -s "http://localhost:8080/api/estadisticas"
 ```
 
 bash:
@@ -138,11 +145,14 @@ curl -s -i -X POST "http://localhost:8080/api/estudiantes" --data-binary "@prueb
 curl -s "http://localhost:8080/api/cursos?categoria=Desarrollo%20web&nivel=B%C3%A1sico"
 curl -s -X PATCH "http://localhost:8080/api/admin/cursos/1/desactivar"
 curl -s -i -X POST "http://localhost:8080/api/consultas" --data-binary "@pruebas/api/etapa6-01-paginas-web.json" -H "Content-Type: application/json"
+curl -s "http://localhost:8080/api/estudiantes/1/historial"
+curl -s -i -X POST "http://localhost:8080/api/recomendaciones/1/calificacion" --data-binary "@pruebas/api/etapa7-01-calificacion-con-comentario.json" -H "Content-Type: application/json"
+curl -s "http://localhost:8080/api/estadisticas"
 ```
 
 E-11 gasta cuota de OpenRouter (embedding y, si hay fuentes, LLM). Necesita n8n con W-1 publicado y `RUTAIA_N8N_WEBHOOK_URL` y `RUTAIA_N8N_TIMEOUT_SEGUNDOS` en el `.env`.
 
-*Pendiente (Etapa 7):* consulta por id, historial, calificaciones y estadísticas; exportación de la especificación a [docs/openapi.json](docs/openapi.json).
+La especificación OpenAPI de los 14 endpoints está exportada en [docs/openapi.json](docs/openapi.json) (`GET /v3/api-docs`).
 
 ## 8. Errores conocidos
 

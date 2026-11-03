@@ -1,0 +1,428 @@
+Etapa 7 · 2026-11-02 22:59:06 (hora local UTC−6) · API http://localhost:8081/api (jar de esta etapa en el puerto 8081, con logging.level.org.hibernate.SQL=debug para contar sentencias)
+Comandos con curl desde Git Bash en la raíz del repositorio; en PowerShell se usa curl.exe con los mismos argumentos. SQL con docker compose exec -T postgres psql.
+Ninguna prueba llama a n8n: 0 solicitudes a OpenRouter.
+
+## Estado inicial (consultas 1–5 de la Etapa 6, sin calificaciones)
+> psql: select c.id, c.estudiante_id, c.estado, c.fecha, r.id as recomendacion_id from consulta c left join recomendacion r on r.consulta_id = c.id order by c.id;
+ id | estudiante_id |     estado     |        fecha        | recomendacion_id 
+----+---------------+----------------+---------------------+------------------
+  1 |             7 | Error          | 2026-11-02 22:33:40 |                 
+  2 |             1 | Respondida     | 2026-11-02 22:34:20 |                1
+  3 |             2 | Respondida     | 2026-11-02 22:34:35 |                2
+  4 |             7 | Respondida     | 2026-11-02 22:34:47 |                3
+  5 |             8 | Sin resultados | 2026-11-02 22:35:03 |                 
+(5 rows)
+
+
+=== E7-01 · E-14 sin calificaciones
+> curl -s -i "http://localhost:8081/api/estadisticas"
+HTTP/1.1 200 
+Content-Type: application/json
+{"totalConsultas":5,"consultasRespondidas":3,"consultasSinResultados":1,"promedioCalificaciones":null,"cursoMasRecomendado":{"cursoId":1,"nombre":"Fundamentos de HTML y CSS para páginas web","vecesRecomendado":1}}
+> psql -f pruebas/bd/etapa7-control-estadisticas.sql
+== totalConsultas, consultasRespondidas, consultasSinResultados
+ total_consultas | consultas_respondidas | consultas_sin_resultados 
+-----------------+-----------------------+--------------------------
+               5 |                     3 |                        1
+(1 row)
+
+== promedioCalificaciones (NULL si no hay calificaciones)
+ promedio_calificaciones | calificaciones 
+-------------------------+----------------
+                         |              0
+(1 row)
+
+== cursoMasRecomendado: la primera fila (más filas en recomendacion_fuente; en empate, menor curso_id)
+ curso_id |                     nombre                     | veces_recomendado 
+----------+------------------------------------------------+-------------------
+        1 | Fundamentos de HTML y CSS para páginas web     |                 1
+        2 | JavaScript y manipulación del DOM              |                 1
+        3 | Diseño web responsive con Flexbox y Grid       |                 1
+        4 | Seguridad de aplicaciones web con OWASP Top 10 |                 1
+        5 | Programación orientada a objetos con Java      |                 1
+(5 rows)
+
+
+## E-04 · Historial
+
+=== E7-02 · Estudiante 7 (Respondida y Error)
+> curl -s -i "http://localhost:8081/api/estudiantes/7/historial"
+HTTP/1.1 200 
+Content-Type: application/json
+[{"consultaId":4,"fecha":"2026-11-02T22:34:47","pregunta":"Necesito desplegar aplicaciones usando contenedores.","estado":"Respondida","resumen":"Hola, soy tu orientador académico de RutaIA. Para tu objetivo de desplegar aplicaciones usando contenedores y tu interés en DevOps, te recomiendo seguir este or…","cursosRecomendados":[{"cursoId":24,"nombre":"Contenedores con Docker para desplegar aplicaciones"},{"cursoId":26,"nombre":"Integración y entrega continua con contenedores"},{"cursoId":25,"nombre":"Orquestación de contenedores con Kubernetes"}]},{"consultaId":1,"fecha":"2026-11-02T22:33:40","pregunta":"Necesito desplegar aplicaciones usando contenedores.","estado":"Error","resumen":"No fue posible generar la recomendación en este momento. Intenta de nuevo más tarde.","cursosRecomendados":[]}]
+
+=== E7-03 · Estudiante 1 (Respondida con respuesta de 965 caracteres)
+> curl -s -i "http://localhost:8081/api/estudiantes/1/historial"
+HTTP/1.1 200 
+Content-Type: application/json
+[{"consultaId":2,"fecha":"2026-11-02T22:34:20","pregunta":"Quiero aprender a crear páginas web.","estado":"Respondida","resumen":"Hola, soy tu orientador de RutaIA. Para tu interés en desarrollo web y dado que eres principiante, te recomiendo seguir este orden de aprendizaje:\n\nPrimero, deb…","cursosRecomendados":[{"cursoId":1,"nombre":"Fundamentos de HTML y CSS para páginas web"},{"cursoId":2,"nombre":"JavaScript y manipulación del DOM"},{"cursoId":3,"nombre":"Diseño web responsive con Flexbox y Grid"},{"cursoId":4,"nombre":"Seguridad de aplicaciones web con OWASP Top 10"}]}]
+Resumen de 161 caracteres; igual a psql «select left(respuesta, 160) || '…' from recomendacion where id = 1»: sí
+
+=== E7-04 · Estudiante 8 (Sin resultados)
+> curl -s -i "http://localhost:8081/api/estudiantes/8/historial"
+HTTP/1.1 200 
+Content-Type: application/json
+[{"consultaId":5,"fecha":"2026-11-02T22:35:03","pregunta":"Quiero aprender cocina italiana.","estado":"Sin resultados","resumen":"No encontramos cursos del catálogo relacionados con tu necesidad. Intenta describirla con otras palabras.","cursosRecomendados":[]}]
+
+=== E7-05 · Estudiante 3 (sin consultas)
+> curl -s -i "http://localhost:8081/api/estudiantes/3/historial"
+HTTP/1.1 200 
+Content-Type: application/json
+[]
+
+=== E7-06 · Estudiante 999999
+> curl -s -i "http://localhost:8081/api/estudiantes/999999/historial"
+HTTP/1.1 404 
+Content-Type: application/json
+{"status":404,"error":"Not Found","mensaje":"No existe un estudiante con id 999999","ruta":"/api/estudiantes/999999/historial","fecha":"2026-11-02T22:59:10","detalles":[]}
+
+=== E7-07 · Id no numérico
+> curl -s -i "http://localhost:8081/api/estudiantes/abc/historial"
+HTTP/1.1 400 
+Content-Type: application/json
+{"status":400,"error":"Bad Request","mensaje":"La solicitud contiene parámetros inválidos","ruta":"/api/estudiantes/abc/historial","fecha":"2026-11-02T22:59:10","detalles":[{"campo":"id","mensaje":"debe ser un número entero"}]}
+
+=== E7-08 · Sentencias SQL de E-04 (sin N+1)
+GET /estudiantes/7/historial → 4 sentencias SQL:
+   select count(*) from estudiante e1_0 where e1_0.id=?
+   select c1_0.id,c1_0.detalle_error,c1_0.estado,c1_0.estudiante_id,c1_0.fecha,c1_0.pregunta from consulta c1_0 where c1_0.estudiante_id=? order by c1_0.fecha desc,c1_0.id desc
+   select r1_0.id,r1_0.consulta_id,r1_0.fecha,r1_0.respuesta from recomendacion r1_0 join consulta c1_0 on c1_0.id=r1_0.consulta_id where c1_0.estudiante_id=?
+   select rf1_0.id,rf1_0.curso_id,c1_0.id,c1_0.activo,c1_0.categoria,c1_0.descripcion,c1_0.duracion_horas,c1_0.nivel,c1_0.nombre,rf1_0.recomendacion_id,rf1_0.similitud from recomendacion_fuente rf1_0 join curso c1_0 on c1_0
+GET /estudiantes/3/historial → 2 sentencias SQL:
+   select count(*) from estudiante e1_0 where e1_0.id=?
+   select c1_0.id,c1_0.detalle_error,c1_0.estado,c1_0.estudiante_id,c1_0.fecha,c1_0.pregunta from consulta c1_0 where c1_0.estudiante_id=? order by c1_0.fecha desc,c1_0.id desc
+
+## E-12 · Detalle de la consulta
+
+=== E7-09 · E-12 frente a E-11 (respuestas de E-11 tomadas de docs/evidencias/etapa6-api.txt)
+> node comparar-e11-e12.js docs/evidencias/etapa6-api.txt http://localhost:8081/api
+consulta 1 (Error): HTTP 200, E-12 sin calificacion IGUAL a E-11, calificacion=null
+consulta 2 (Respondida): HTTP 200, E-12 sin calificacion IGUAL a E-11, calificacion=null
+consulta 3 (Respondida): HTTP 200, E-12 sin calificacion IGUAL a E-11, calificacion=null
+consulta 4 (Respondida): HTTP 200, E-12 sin calificacion IGUAL a E-11, calificacion=null
+consulta 5 (Sin resultados): HTTP 200, E-12 sin calificacion IGUAL a E-11, calificacion=null
+Resultado: 5 de 5 iguales, con los 9 campos de E-11 en el mismo orden más calificacion
+
+=== E7-10 · Consulta 4 (Respondida, sin calificar)
+> curl -s -i "http://localhost:8081/api/consultas/4"
+HTTP/1.1 200 
+Content-Type: application/json
+{"consultaId":4,"estudianteId":7,"pregunta":"Necesito desplegar aplicaciones usando contenedores.","fecha":"2026-11-02T22:34:47","estado":"Respondida","respuesta":"Hola, soy tu orientador académico de RutaIA. Para tu objetivo de desplegar aplicaciones usando contenedores y tu interés en DevOps, te recomiendo seguir este orden de aprendizaje:\n\nPrimero, te sugiero Contenedores con Docker para desplegar aplicaciones. Al ser de nivel Intermedio, es el punto de partida ideal para dominar el empaquetado, el uso de Dockerfile, Docker Compose y la persistencia de datos, lo cual es fundamental para cualquier despliegue.\n\nSegundo, te recomiendo Integración y entrega continua con contenedores. Este curso de nivel Intermedio te permitirá avanzar hacia DevOps al aprender a automatizar la construcción y el despliegue mediante pipelines de CI/CD, integrando lo aprendido con Docker.\n\nFinalmente, para completar tu perfil, puedes tomar Orquestación de contenedores con Kubernetes. Este curso de nivel Avanzado es el paso lógico para aprender a escalar y administrar aplicaciones en entornos de alta disponibilidad.\n\nCon estos tres cursos cubres desde la creación del contenedor hasta la automatización y la orquestación profesional.","mensaje":null,"recomendacionId":3,"fuentes":[{"cursoId":24,"nombre":"Contenedores con Docker para desplegar aplicaciones","descripcion":"Aprende a empaquetar y desplegar aplicaciones usando contenedores con Docker, la herramienta estándar de la industria para ejecutar software de forma igual en cualquier máquina. El curso cubre imágenes, contenedores, Dockerfile, capas, construcción multietapa, registros como Docker Hub, puertos, variables de entorno, volúmenes para persistir datos y redes entre contenedores. Después usarás Docker Compose para levantar aplicaciones de varios servicios, por ejemplo un backend, una base de datos PostgreSQL y una herramienta de automatización, con healthchecks y secretos fuera del código. También verás buenas prácticas de seguridad y tamaño de imágenes. Como proyecto práctico contenerizarás una aplicación web con su base de datos y la desplegarás en un servidor en la nube. Está dirigido a desarrolladores y estudiantes de sistemas que quieren desplegar aplicaciones de forma confiable. Es el primer paso hacia DevOps, Kubernetes y la nube.","categoria":"Herramientas tecnológicas","nivel":"Intermedio","duracionHoras":30,"similitud":0.6088},{"cursoId":26,"nombre":"Integración y entrega continua con contenedores","descripcion":"Aprende a automatizar la construcción, las pruebas y el despliegue de aplicaciones con integración continua y entrega continua (CI/CD) basadas en contenedores. El curso cubre la creación de pipelines con GitHub Actions y GitLab CI, la ejecución automática de pruebas en cada cambio, el análisis de calidad y seguridad del código, la construcción de imágenes Docker, su publicación en un registro de contenedores y el despliegue automático en un servidor o en Kubernetes. También verás manejo de secretos en los pipelines, ambientes de pruebas y producción, versionado semántico y estrategias de despliegue como blue green y canary. Como proyecto práctico configurarás un pipeline completo que prueba, construye y despliega una API en contenedores cada vez que se integra una rama. Está dirigido a desarrolladores que ya conocen Git y Docker y quieren adoptar prácticas DevOps. Sirve para entregar software más rápido y con menos errores.","categoria":"Herramientas tecnológicas","nivel":"Intermedio","duracionHoras":35,"similitud":0.484},{"cursoId":25,"nombre":"Orquestación de contenedores con Kubernetes","descripcion":"Aprende a desplegar, escalar y administrar aplicaciones en contenedores con Kubernetes, el orquestador más usado en la nube. El curso cubre la arquitectura de un clúster, pods, deployments, réplicas, services, ingress, ConfigMaps, Secrets, volúmenes persistentes, namespaces y sondas de salud. Practicarás con kubectl, Minikube o kind en tu computador, y aprenderás a escalar automáticamente según la carga, actualizar aplicaciones sin caídas y revertir versiones. También verás empaquetado con Helm, monitoreo básico con Prometheus y Grafana, y nociones de servicios administrados como EKS, AKS y GKE. Como proyecto práctico desplegarás en Kubernetes una aplicación de microservicios con frontend, API y base de datos, con escalado y actualización continua. Está dirigido a desarrolladores y administradores de sistemas que ya usan Docker y quieren trabajar en DevOps o ingeniería de plataformas. Sirve para operar aplicaciones con alta disponibilidad.","categoria":"Herramientas tecnológicas","nivel":"Avanzado","duracionHoras":45,"similitud":0.4204}],"calificacion":null}
+
+=== E7-11 · Consulta 999999
+> curl -s -i "http://localhost:8081/api/consultas/999999"
+HTTP/1.1 404 
+Content-Type: application/json
+{"status":404,"error":"Not Found","mensaje":"No existe una consulta con id 999999","ruta":"/api/consultas/999999","fecha":"2026-11-02T22:59:13","detalles":[]}
+
+=== E7-12 · Id no numérico
+> curl -s -i "http://localhost:8081/api/consultas/abc"
+HTTP/1.1 400 
+Content-Type: application/json
+{"status":400,"error":"Bad Request","mensaje":"La solicitud contiene parámetros inválidos","ruta":"/api/consultas/abc","fecha":"2026-11-02T22:59:13","detalles":[{"campo":"id","mensaje":"debe ser un número entero"}]}
+
+=== E7-13 · Sentencias SQL de E-12
+GET /consultas/2 → 4 sentencias SQL:
+   select c1_0.id,c1_0.detalle_error,c1_0.estado,c1_0.estudiante_id,c1_0.fecha,c1_0.pregunta from consulta c1_0 where c1_0.id=?
+   select r1_0.id,r1_0.consulta_id,r1_0.fecha,r1_0.respuesta from recomendacion r1_0 where r1_0.consulta_id=?
+   select rf1_0.id,rf1_0.curso_id,c1_0.id,c1_0.activo,c1_0.categoria,c1_0.descripcion,c1_0.duracion_horas,c1_0.nivel,c1_0.nombre,rf1_0.recomendacion_id,rf1_0.similitud from recomendacion_fuente rf1_0 join curso c1_0 on c1_0
+   select c1_0.id,c1_0.comentario,c1_0.fecha,c1_0.puntuacion,c1_0.recomendacion_id from calificacion c1_0 where c1_0.recomendacion_id=?
+GET /consultas/5 → 1 sentencias SQL:
+   select c1_0.id,c1_0.detalle_error,c1_0.estado,c1_0.estudiante_id,c1_0.fecha,c1_0.pregunta from consulta c1_0 where c1_0.id=?
+
+## E-13 · Calificaciones
+
+=== E7-14 · Recomendación 1, puntuación 5 con comentario
+> curl -s -i -X POST "http://localhost:8081/api/recomendaciones/1/calificacion" --data-binary "@pruebas/api/etapa7-01-calificacion-con-comentario.json" -H "Content-Type: application/json"
+HTTP/1.1 201 
+Location: http://localhost:8081/api/recomendaciones/1/calificacion
+Content-Type: application/json
+{"recomendacionId":1,"puntuacion":5,"comentario":"La ruta me sirvió para saber por dónde empezar.","fecha":"2026-11-02T22:59:15"}
+
+=== E7-15 · Recomendación 2, puntuación 4 sin comentario
+> curl -s -i -X POST "http://localhost:8081/api/recomendaciones/2/calificacion" --data-binary "@pruebas/api/etapa7-02-calificacion-sin-comentario.json" -H "Content-Type: application/json"
+HTTP/1.1 201 
+Location: http://localhost:8081/api/recomendaciones/2/calificacion
+Content-Type: application/json
+{"recomendacionId":2,"puntuacion":4,"comentario":null,"fecha":"2026-11-02T22:59:15"}
+
+=== E7-16 · Recomendación 3, puntuación 0
+> curl -s -i -X POST "http://localhost:8081/api/recomendaciones/3/calificacion" --data-binary "@pruebas/api/etapa7-03-puntuacion-cero.json" -H "Content-Type: application/json"
+HTTP/1.1 400 
+Content-Type: application/json
+{"status":400,"error":"Bad Request","mensaje":"La solicitud contiene datos inválidos","ruta":"/api/recomendaciones/3/calificacion","fecha":"2026-11-02T22:59:16","detalles":[{"campo":"puntuacion","mensaje":"debe estar entre 1 y 5"}]}
+
+=== E7-17 · Recomendación 3, puntuación 6
+> curl -s -i -X POST "http://localhost:8081/api/recomendaciones/3/calificacion" --data-binary "@pruebas/api/etapa7-04-puntuacion-seis.json" -H "Content-Type: application/json"
+HTTP/1.1 400 
+Content-Type: application/json
+{"status":400,"error":"Bad Request","mensaje":"La solicitud contiene datos inválidos","ruta":"/api/recomendaciones/3/calificacion","fecha":"2026-11-02T22:59:16","detalles":[{"campo":"puntuacion","mensaje":"debe estar entre 1 y 5"}]}
+
+=== E7-18 · Recomendación 3, puntuación 3.5
+> curl -s -i -X POST "http://localhost:8081/api/recomendaciones/3/calificacion" --data-binary "@pruebas/api/etapa7-05-puntuacion-decimal.json" -H "Content-Type: application/json"
+HTTP/1.1 400 
+Content-Type: application/json
+{"status":400,"error":"Bad Request","mensaje":"La solicitud contiene datos inválidos","ruta":"/api/recomendaciones/3/calificacion","fecha":"2026-11-02T22:59:16","detalles":[{"campo":"puntuacion","mensaje":"tiene un tipo o formato inválido"}]}
+
+=== E7-19 · Recomendación 3, sin puntuación
+> curl -s -i -X POST "http://localhost:8081/api/recomendaciones/3/calificacion" --data-binary "@pruebas/api/etapa7-06-puntuacion-ausente.json" -H "Content-Type: application/json"
+HTTP/1.1 400 
+Content-Type: application/json
+{"status":400,"error":"Bad Request","mensaje":"La solicitud contiene datos inválidos","ruta":"/api/recomendaciones/3/calificacion","fecha":"2026-11-02T22:59:16","detalles":[{"campo":"puntuacion","mensaje":"es obligatoria"}]}
+
+=== E7-20 · Recomendación 3, comentario de 501 caracteres
+> curl -s -i -X POST "http://localhost:8081/api/recomendaciones/3/calificacion" --data-binary "@pruebas/api/etapa7-07-comentario-501.json" -H "Content-Type: application/json"
+HTTP/1.1 400 
+Content-Type: application/json
+{"status":400,"error":"Bad Request","mensaje":"La solicitud contiene datos inválidos","ruta":"/api/recomendaciones/3/calificacion","fecha":"2026-11-02T22:59:16","detalles":[{"campo":"comentario","mensaje":"debe tener como máximo 500 caracteres"}]}
+
+=== E7-21 · JSON mal formado
+> curl -s -i -X POST "http://localhost:8081/api/recomendaciones/3/calificacion" --data-binary "@pruebas/api/etapa2-json-mal-formado.json" -H "Content-Type: application/json"
+HTTP/1.1 400 
+Content-Type: application/json
+{"status":400,"error":"Bad Request","mensaje":"El cuerpo de la solicitud no es un JSON válido","ruta":"/api/recomendaciones/3/calificacion","fecha":"2026-11-02T22:59:16","detalles":[]}
+> psql: select count(*) as calificaciones_recomendacion_3 from calificacion where recomendacion_id = 3;
+ calificaciones_recomendacion_3 
+--------------------------------
+                              0
+(1 row)
+
+
+=== E7-22 · Recomendación 999999
+> curl -s -i -X POST "http://localhost:8081/api/recomendaciones/999999/calificacion" --data-binary "@pruebas/api/etapa7-01-calificacion-con-comentario.json" -H "Content-Type: application/json"
+HTTP/1.1 404 
+Content-Type: application/json
+{"status":404,"error":"Not Found","mensaje":"No existe una recomendación con id 999999","ruta":"/api/recomendaciones/999999/calificacion","fecha":"2026-11-02T22:59:17","detalles":[]}
+
+=== E7-23 · Id no numérico
+> curl -s -i -X POST "http://localhost:8081/api/recomendaciones/abc/calificacion" --data-binary "@pruebas/api/etapa7-01-calificacion-con-comentario.json" -H "Content-Type: application/json"
+HTTP/1.1 400 
+Content-Type: application/json
+{"status":400,"error":"Bad Request","mensaje":"La solicitud contiene parámetros inválidos","ruta":"/api/recomendaciones/abc/calificacion","fecha":"2026-11-02T22:59:17","detalles":[{"campo":"id","mensaje":"debe ser un número entero"}]}
+
+=== E7-24 · Segunda calificación de la recomendación 1
+> curl -s -i -X POST "http://localhost:8081/api/recomendaciones/1/calificacion" --data-binary "@pruebas/api/etapa7-02-calificacion-sin-comentario.json" -H "Content-Type: application/json"
+HTTP/1.1 409 
+Content-Type: application/json
+{"status":409,"error":"Conflict","mensaje":"La recomendación 1 ya fue calificada","ruta":"/api/recomendaciones/1/calificacion","fecha":"2026-11-02T22:59:17","detalles":[]}
+
+=== E7-25 · Recomendación 3, puntuación 4 con comentario de exactamente 500 caracteres
+> curl -s -i -X POST "http://localhost:8081/api/recomendaciones/3/calificacion" --data-binary "@pruebas/api/etapa7-08-comentario-500.json" -H "Content-Type: application/json"
+HTTP/1.1 201 
+Location: http://localhost:8081/api/recomendaciones/3/calificacion
+Content-Type: application/json
+{"recomendacionId":3,"puntuacion":4,"comentario":"Comentario de prueba con tildes: ruta útil, cursos claros y orden lógico. Comentario de prueba con tildes: ruta útil, cursos claros y orden lógico. Comentario de prueba con tildes: ruta útil, cursos claros y orden lógico. Comentario de prueba con tildes: ruta útil, cursos claros y orden lógico. Comentario de prueba con tildes: ruta útil, cursos claros y orden lógico. Comentario de prueba con tildes: ruta útil, cursos claros y orden lógico. Comentario de prueba con tildes: ruta útil, cursos claro","fecha":"2026-11-02T22:59:17"}
+> psql: select id, recomendacion_id, puntuacion, char_length(comentario) as largo_comentario, left(comentario, 50) as comentario, fecha from calificacion order by id;
+ id | recomendacion_id | puntuacion | largo_comentario |                     comentario                     |        fecha        
+----+------------------+------------+------------------+----------------------------------------------------+---------------------
+  1 |                1 |          5 |               47 | La ruta me sirvió para saber por dónde empezar.    | 2026-11-02 22:59:15
+  2 |                2 |          4 |                  |                                                    | 2026-11-02 22:59:15
+  3 |                3 |          4 |              500 | Comentario de prueba con tildes: ruta útil, cursos | 2026-11-02 22:59:17
+(3 rows)
+
+
+=== E7-26 · E-12 después de calificar (consultas 2 y 3)
+> curl -s "http://localhost:8081/api/consultas/2" (solo calificacion)
+{"consultaId":2,"recomendacionId":1,"calificacion":{"puntuacion":5,"comentario":"La ruta me sirvió para saber por dónde empezar.","fecha":"2026-11-02T22:59:15"}}
+> curl -s "http://localhost:8081/api/consultas/3" (solo calificacion)
+{"consultaId":3,"recomendacionId":2,"calificacion":{"puntuacion":4,"comentario":null,"fecha":"2026-11-02T22:59:15"}}
+
+=== E7-27 · E-14 con 3 calificaciones (5, 4 y 4)
+> curl -s -i "http://localhost:8081/api/estadisticas"
+HTTP/1.1 200 
+Content-Type: application/json
+{"totalConsultas":5,"consultasRespondidas":3,"consultasSinResultados":1,"promedioCalificaciones":4.33,"cursoMasRecomendado":{"cursoId":1,"nombre":"Fundamentos de HTML y CSS para páginas web","vecesRecomendado":1}}
+> psql -f pruebas/bd/etapa7-control-estadisticas.sql
+== totalConsultas, consultasRespondidas, consultasSinResultados
+ total_consultas | consultas_respondidas | consultas_sin_resultados 
+-----------------+-----------------------+--------------------------
+               5 |                     3 |                        1
+(1 row)
+
+== promedioCalificaciones (NULL si no hay calificaciones)
+ promedio_calificaciones | calificaciones 
+-------------------------+----------------
+                    4.33 |              3
+(1 row)
+
+== cursoMasRecomendado: la primera fila (más filas en recomendacion_fuente; en empate, menor curso_id)
+ curso_id |                     nombre                     | veces_recomendado 
+----------+------------------------------------------------+-------------------
+        1 | Fundamentos de HTML y CSS para páginas web     |                 1
+        2 | JavaScript y manipulación del DOM              |                 1
+        3 | Diseño web responsive con Flexbox y Grid       |                 1
+        4 | Seguridad de aplicaciones web con OWASP Top 10 |                 1
+        5 | Programación orientada a objetos con Java      |                 1
+(5 rows)
+
+
+## Datos temporales del estudiante 3 (pruebas/bd/etapa7-datos-temporales.sql)
+> psql -f pruebas/bd/etapa7-datos-temporales.sql
+ id |   estado   |        fecha        | recomendacion_id | largo_respuesta 
+----+------------+---------------------+------------------+-----------------
+  6 | Respondida | 2026-11-02 23:00:01 |                5 |             161
+  7 | Respondida | 2026-11-02 23:00:02 |                4 |             160
+  8 | Pendiente  | 2026-11-02 23:00:03 |                  |                
+(3 rows)
+
+
+=== E7-28 · E-04 del estudiante 3: Pendiente, resumen de 160 (sin corte) y de 161 (cortado), fuentes ordenadas
+> curl -s -i "http://localhost:8081/api/estudiantes/3/historial"
+HTTP/1.1 200 
+Content-Type: application/json
+[{"consultaId":8,"fecha":"2026-11-02T23:00:03","pregunta":"Consulta temporal en Pendiente.","estado":"Pendiente","resumen":"Consulta en proceso.","cursosRecomendados":[]},{"consultaId":7,"fecha":"2026-11-02T23:00:02","pregunta":"Consulta temporal con respuesta de 160 caracteres.","estado":"Respondida","resumen":"Respuesta temporal de 160 caracteres, con tildes (á, é, ñ) para contar caracteres y no bytes. ..................................................................","cursosRecomendados":[{"cursoId":9,"nombre":"Consultas SQL para análisis de datos"},{"cursoId":10,"nombre":"Diseño de bases de datos relacionales con PostgreSQL"}]},{"consultaId":6,"fecha":"2026-11-02T23:00:01","pregunta":"Consulta temporal con respuesta de 161 caracteres.","estado":"Respondida","resumen":"Respuesta temporal de 161 caracteres, con tildes (á, é, ñ) para contar caracteres y no bytes. ..................................................................…","cursosRecomendados":[{"cursoId":9,"nombre":"Consultas SQL para análisis de datos"},{"cursoId":10,"nombre":"Diseño de bases de datos relacionales con PostgreSQL"}]}]
+Largos: consulta 8 Pendiente: resumen de 20 caracteres; consulta 7 Respondida: resumen de 160 caracteres; consulta 6 Respondida: resumen de 161 caracteres
+
+=== E7-29 · E-12 de la consulta Pendiente
+> curl -s -i "http://localhost:8081/api/consultas/8"
+HTTP/1.1 200 
+Content-Type: application/json
+{"consultaId":8,"estudianteId":3,"pregunta":"Consulta temporal en Pendiente.","fecha":"2026-11-02T23:00:03","estado":"Pendiente","respuesta":null,"mensaje":"Consulta en proceso.","recomendacionId":null,"fuentes":[],"calificacion":null}
+
+=== E7-30 · E-14 con empate en 2 entre los cursos 9 y 10
+> curl -s -i "http://localhost:8081/api/estadisticas"
+HTTP/1.1 200 
+Content-Type: application/json
+{"totalConsultas":8,"consultasRespondidas":5,"consultasSinResultados":1,"promedioCalificaciones":4.33,"cursoMasRecomendado":{"cursoId":9,"nombre":"Consultas SQL para análisis de datos","vecesRecomendado":2}}
+> psql -f pruebas/bd/etapa7-control-estadisticas.sql
+== totalConsultas, consultasRespondidas, consultasSinResultados
+ total_consultas | consultas_respondidas | consultas_sin_resultados 
+-----------------+-----------------------+--------------------------
+               8 |                     5 |                        1
+(1 row)
+
+== promedioCalificaciones (NULL si no hay calificaciones)
+ promedio_calificaciones | calificaciones 
+-------------------------+----------------
+                    4.33 |              3
+(1 row)
+
+== cursoMasRecomendado: la primera fila (más filas en recomendacion_fuente; en empate, menor curso_id)
+ curso_id |                        nombre                        | veces_recomendado 
+----------+------------------------------------------------------+-------------------
+        9 | Consultas SQL para análisis de datos                 |                 2
+       10 | Diseño de bases de datos relacionales con PostgreSQL |                 2
+        1 | Fundamentos de HTML y CSS para páginas web           |                 1
+        2 | JavaScript y manipulación del DOM                    |                 1
+        3 | Diseño web responsive con Flexbox y Grid             |                 1
+(5 rows)
+
+
+=== E7-31 · 10 calificaciones simultáneas de la recomendación 4
+> 10 × curl -s -o /dev/null -w "%{http_code}" -X POST "http://localhost:8081/api/recomendaciones/4/calificacion" --data-binary "@pruebas/api/etapa7-02-calificacion-sin-comentario.json" -H "Content-Type: application/json" (en paralelo)
+Códigos:  1 201; 9 409;
+Violaciones de uq_calificacion_recomendacion en el log de la API: 0 (si es 0, los 409 los dio la comprobación previa existsByRecomendacionId; la vía de la restricción única se fuerza en E7-32)
+> psql: select recomendacion_id, count(*) from calificacion where recomendacion_id = 4 group by recomendacion_id;
+ recomendacion_id | count 
+------------------+-------
+                4 |     1
+(1 row)
+
+
+=== E7-32 · Calificación mientras psql tiene otra de la recomendación 5 sin confirmar
+> psql: begin; insert into calificacion (recomendacion_id, puntuacion, comentario) values (5, 3, 'Insertada desde psql'); select pg_sleep(4); commit;   (en segundo plano)
+> curl -s -i -X POST "http://localhost:8081/api/recomendaciones/5/calificacion" --data-binary "@pruebas/api/etapa7-01-calificacion-con-comentario.json" -H "Content-Type: application/json"   (1,5 s después)
+HTTP/1.1 409 
+Content-Type: application/json
+{"status":409,"error":"Conflict","mensaje":"La recomendación 5 ya fue calificada","ruta":"/api/recomendaciones/5/calificacion","fecha":"2026-11-02T22:59:31","detalles":[]}
+(tiempo total: 2.997476 s)
+Log de la API durante la petición:
+   WARN 24908 --- [rutaia-api] [nio-8081-exec-2] org.hibernate.orm.jdbc.error             : HHH000247: ErrorCode: 0, SQLState: 23505
+   WARN 24908 --- [rutaia-api] [nio-8081-exec-2] org.hibernate.orm.jdbc.error             : ERROR: duplicate key value violates unique constraint "uq_calificacion_recomendacion"
+> psql: select recomendacion_id, puntuacion, comentario from calificacion where recomendacion_id = 5;
+ recomendacion_id | puntuacion |      comentario      
+------------------+------------+----------------------
+                5 |          3 | Insertada desde psql
+(1 row)
+
+
+## Limpieza de los datos temporales (pruebas/bd/etapa7-limpieza.sql)
+> psql -f pruebas/bd/etapa7-limpieza.sql
+ setval 
+--------
+      6
+(1 row)
+
+ setval 
+--------
+      4
+(1 row)
+
+ setval 
+--------
+     12
+(1 row)
+
+ setval 
+--------
+      4
+(1 row)
+
+ consultas_estudiante_3 
+------------------------
+                      0
+(1 row)
+
+
+=== E7-33 · E-14 después de la limpieza (igual que E7-27)
+> curl -s -i "http://localhost:8081/api/estadisticas"
+HTTP/1.1 200 
+Content-Type: application/json
+{"totalConsultas":5,"consultasRespondidas":3,"consultasSinResultados":1,"promedioCalificaciones":4.33,"cursoMasRecomendado":{"cursoId":1,"nombre":"Fundamentos de HTML y CSS para páginas web","vecesRecomendado":1}}
+> psql -f pruebas/bd/etapa7-control-estadisticas.sql
+== totalConsultas, consultasRespondidas, consultasSinResultados
+ total_consultas | consultas_respondidas | consultas_sin_resultados 
+-----------------+-----------------------+--------------------------
+               5 |                     3 |                        1
+(1 row)
+
+== promedioCalificaciones (NULL si no hay calificaciones)
+ promedio_calificaciones | calificaciones 
+-------------------------+----------------
+                    4.33 |              3
+(1 row)
+
+== cursoMasRecomendado: la primera fila (más filas en recomendacion_fuente; en empate, menor curso_id)
+ curso_id |                     nombre                     | veces_recomendado 
+----------+------------------------------------------------+-------------------
+        1 | Fundamentos de HTML y CSS para páginas web     |                 1
+        2 | JavaScript y manipulación del DOM              |                 1
+        3 | Diseño web responsive con Flexbox y Grid       |                 1
+        4 | Seguridad de aplicaciones web con OWASP Top 10 |                 1
+        5 | Programación orientada a objetos con Java      |                 1
+(5 rows)
+
+
+## CORS
+
+=== E7-34 · Preflight de E-13 y GET de E-14 desde el frontend
+> curl -s -i -X OPTIONS "http://localhost:8081/api/recomendaciones/1/calificacion" -H "Origin: http://localhost:5500" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: Content-Type"
+HTTP/1.1 200 
+Access-Control-Allow-Origin: http://localhost:5500
+Access-Control-Allow-Methods: GET,POST,PUT,PATCH,OPTIONS
+Access-Control-Allow-Headers: Content-Type
+Access-Control-Max-Age: 1800
+> curl -s -i "http://localhost:8081/api/estadisticas" -H "Origin: http://127.0.0.1:5500"
+HTTP/1.1 200 
+Access-Control-Allow-Origin: http://127.0.0.1:5500
+> curl -s -i "http://localhost:8081/api/estadisticas" -H "Origin: http://otro.test"
+HTTP/1.1 403 
+Invalid CORS request
+
+## Estado final de la BD
+> psql: select estado, count(*) from consulta group by estado order by estado;
+     estado     | count 
+----------------+-------
+ Error          |     1
+ Respondida     |     3
+ Sin resultados |     1
+(3 rows)
+
+> psql: select id, recomendacion_id, puntuacion, char_length(comentario) as largo_comentario, fecha from calificacion order by id;
+ id | recomendacion_id | puntuacion | largo_comentario |        fecha        
+----+------------------+------------+------------------+---------------------
+  1 |                1 |          5 |               47 | 2026-11-02 22:59:15
+  2 |                2 |          4 |                  | 2026-11-02 22:59:15
+  3 |                3 |          4 |              500 | 2026-11-02 22:59:17
+(3 rows)
+

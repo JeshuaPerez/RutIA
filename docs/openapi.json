@@ -1,0 +1,2286 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "RutaIA API",
+    "description": "API REST de RutaIA, aplicación de orientación académica que recomienda cursos del catálogo institucional. Toda respuesta 4xx/5xx usa el cuerpo `Error`. Las operaciones de administración de cursos no requieren autenticación.",
+    "version": "0.0.1"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080",
+      "description": "Local"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Estudiantes",
+      "description": "Registro y consulta de estudiantes (RF 01 y RF 02)"
+    },
+    {
+      "name": "Catálogo de cursos",
+      "description": "Catálogo público de cursos activos (RF 04)"
+    },
+    {
+      "name": "Administración de cursos",
+      "description": "Registro, consulta, actualización y desactivación de cursos (RF 03)"
+    },
+    {
+      "name": "Consultas",
+      "description": "Consultas en lenguaje natural y recomendación de cursos (RF 06–08, RF 13 y RF 14)"
+    },
+    {
+      "name": "Historial y detalle",
+      "description": "Historial de un estudiante y detalle completo de cada consulta (RF 02 y RF 16)"
+    },
+    {
+      "name": "Calificaciones",
+      "description": "Calificación de las recomendaciones (RF 17)"
+    },
+    {
+      "name": "Estadísticas",
+      "description": "Estadísticas básicas de uso (RF 18)"
+    }
+  ],
+  "paths": {
+    "/api/admin/cursos/{id}": {
+      "get": {
+        "tags": [
+          "Administración de cursos"
+        ],
+        "summary": "Consultar un curso por id (E-08)",
+        "description": "Devuelve el curso, activo o inactivo, con el identificador indicado.",
+        "operationId": "consultarCursoAdmin",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Id del curso",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "example": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Curso encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursoAdmin"
+                },
+                "example": {
+                  "id": 31,
+                  "nombre": "Introducción a TypeScript",
+                  "descripcion": "Curso práctico sobre tipos, interfaces y genéricos en TypeScript para crear aplicaciones web mantenibles.",
+                  "categoria": "Desarrollo web",
+                  "nivel": "Intermedio",
+                  "duracionHoras": 24,
+                  "activo": true
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "El id no es un número entero",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El curso no existe",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "status": 404,
+                  "error": "Not Found",
+                  "mensaje": "No existe un curso con id 999999",
+                  "ruta": "/api/admin/cursos/999999",
+                  "fecha": "2026-11-01T10:32:00",
+                  "detalles": []
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error inesperado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "status": 500,
+                  "error": "Internal Server Error",
+                  "mensaje": "Ocurrió un error inesperado. Intenta de nuevo más tarde.",
+                  "ruta": "/api/cursos",
+                  "fecha": "2026-11-01T10:32:00",
+                  "detalles": []
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Administración de cursos"
+        ],
+        "summary": "Actualizar un curso (E-09)",
+        "description": "Reemplaza nombre, descripción, categoría, nivel y duración con las mismas reglas que el registro. El estado activo no cambia.",
+        "operationId": "actualizarCurso",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Id del curso",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "example": 1
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CursoRequest"
+              },
+              "examples": {
+                "Curso válido": {
+                  "description": "Curso válido",
+                  "value": {
+                    "nombre": "Introducción a TypeScript",
+                    "descripcion": "Curso práctico sobre tipos, interfaces y genéricos en TypeScript para crear aplicaciones web mantenibles.",
+                    "categoria": "Desarrollo web",
+                    "nivel": "Intermedio",
+                    "duracionHoras": 24
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Curso actualizado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursoAdmin"
+                },
+                "example": {
+                  "id": 31,
+                  "nombre": "Introducción a TypeScript",
+                  "descripcion": "Curso práctico sobre tipos, interfaces y genéricos en TypeScript para crear aplicaciones web mantenibles.",
+                  "categoria": "Desarrollo web",
+                  "nivel": "Intermedio",
+                  "duracionHoras": 24,
+                  "activo": true
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos, JSON mal formado, nivel fuera de C5 o id no numérico",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "status": 400,
+                  "error": "Bad Request",
+                  "mensaje": "La solicitud contiene datos inválidos",
+                  "ruta": "/api/admin/cursos",
+                  "fecha": "2026-11-01T10:32:00",
+                  "detalles": [
+                    {
+                      "campo": "duracionHoras",
+                      "mensaje": "debe ser mayor que cero"
+                    },
+                    {
+                      "campo": "nombre",
+                      "mensaje": "es obligatorio"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El curso no existe",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "status": 404,
+                  "error": "Not Found",
+                  "mensaje": "No existe un curso con id 999999",
+                  "ruta": "/api/admin/cursos/999999",
+                  "fecha": "2026-11-01T10:32:00",
+                  "detalles": []
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error inesperado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "status": 500,
+                  "error": "Internal Server Error",
+                  "mensaje": "Ocurrió un error inesperado. Intenta de nuevo más tarde.",
+                  "ruta": "/api/cursos",
+                  "fecha": "2026-11-01T10:32:00",
+                  "detalles": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/recomendaciones/{id}/calificacion": {
+      "post": {
+        "tags": [
+          "Calificaciones"
+        ],
+        "summary": "Calificar una recomendación (E-13)",
+        "description": "Registra una puntuación entera de 1 a 5 y un comentario opcional de hasta 500 caracteres. Cada recomendación admite una sola calificación: la segunda responde 409, también si dos llegan a la vez (restricción única uq_calificacion_recomendacion). El id es el recomendacionId que devuelven E-11 y E-12.",
+        "operationId": "calificarRecomendacion",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Id de la recomendación",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "example": 1
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CalificacionRequest"
+              },
+              "examples": {
+                "Con comentario": {
+                  "description": "Con comentario",
+                  "value": {
+                    "puntuacion": 5,
+                    "comentario": "La ruta me sirvió para saber por dónde empezar."
+                  }
+                },
+                "Sin comentario": {
+                  "description": "Sin comentario",
+                  "value": {
+                    "puntuacion": 4
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Calificación registrada",
+            "headers": {
+              "Location": {
+                "description": "URL de la calificación de la recomendación",
+                "style": "simple",
+                "schema": {
+                  "type": "string",
+                  "example": "http://localhost:8080/api/recomendaciones/1/calificacion"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Calificacion"
+                },
+                "example": {
+                  "recomendacionId": 1,
+                  "puntuacion": 5,
+                  "comentario": "La ruta me sirvió para saber por dónde empezar.",
+                  "fecha": "2026-11-02T22:59:15"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Puntuación ausente, fuera de 1 a 5 o decimal, comentario de más de 500 caracteres, id no numérico o JSON mal formado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "Fuera de rango": {
+                    "description": "Fuera de rango",
+                    "value": {
+                      "status": 400,
+                      "error": "Bad Request",
+                      "mensaje": "La solicitud contiene datos inválidos",
+                      "ruta": "/api/recomendaciones/1/calificacion",
+                      "fecha": "2026-11-02T23:00:00",
+                      "detalles": [
+                        {
+                          "campo": "puntuacion",
+                          "mensaje": "debe estar entre 1 y 5"
+                        }
+                      ]
+                    }
+                  },
+                  "Decimal": {
+                    "description": "Decimal",
+                    "value": {
+                      "status": 400,
+                      "error": "Bad Request",
+                      "mensaje": "La solicitud contiene datos inválidos",
+                      "ruta": "/api/recomendaciones/1/calificacion",
+                      "fecha": "2026-11-02T23:00:00",
+                      "detalles": [
+                        {
+                          "campo": "puntuacion",
+                          "mensaje": "tiene un tipo o formato inválido"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La recomendación no existe",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "status": 404,
+                  "error": "Not Found",
+                  "mensaje": "No existe una recomendación con id 999999",
+                  "ruta": "/api/recomendaciones/999999/calificacion",
+                  "fecha": "2026-11-02T23:00:00",
+                  "detalles": []
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "La recomendación ya fue calificada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "status": 409,
+                  "error": "Conflict",
+                  "mensaje": "La recomendación 1 ya fue calificada",
+                  "ruta": "/api/recomendaciones/1/calificacion",
+                  "fecha": "2026-11-02T23:00:00",
+                  "detalles": []
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error inesperado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "status": 500,
+                  "error": "Internal Server Error",
+                  "mensaje": "Ocurrió un error inesperado. Intenta de nuevo más tarde.",
+                  "ruta": "/api/cursos",
+                  "fecha": "2026-11-01T10:32:00",
+                  "detalles": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/estudiantes": {
+      "get": {
+        "tags": [
+          "Estudiantes"
+        ],
+        "summary": "Listar estudiantes (E-02)",
+        "description": "Devuelve todos los estudiantes registrados, ordenados por id ascendente.",
+        "operationId": "listarEstudiantes",
+        "responses": {
+          "200": {
+            "description": "Lista de estudiantes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Estudiante"
+                  }
+                },
+                "example": [
+                  {
+                    "id": 11,
+                    "nombreCompleto": "Ana María Torres",
+                    "correo": "ana.torres@rutaia.test",
+                    "nivelExperiencia": "Principiante",
+                    "areaInteres": "Desarrollo web",
+                    "fechaRegistro": "2026-11-02T17:05:12"
+                  }
+                ]
+              }
+            }
+          },
+          "500": {
+            "description": "Error inesperado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "status": 500,
+                  "error": "Internal Server Error",
+                  "mensaje": "Ocurrió un error inesperado. Intenta de nuevo más tarde.",
+                  "ruta": "/api/cursos",
+                  "fecha": "2026-11-01T10:32:00",
+                  "detalles": []
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Estudiantes"
+        ],
+        "summary": "Registrar un estudiante (E-01)",
+        "description": "Registra nombre completo, correo, nivel de experiencia y área de interés. El correo se guarda sin espacios al inicio o al final y en minúsculas; no puede repetirse, sin distinguir mayúsculas. nivelExperiencia acepta solo Principiante, Intermedio o Avanzado.",
+        "operationId": "registrarEstudiante",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EstudianteRequest"
+              },
+              "examples": {
+                "Alta válida": {
+                  "description": "Alta válida",
+                  "value": {
+                    "nombreCompleto": "Ana María Torres",
+                    "correo": "Ana.Torres@RutaIA.test",
+                    "nivelExperiencia": "Principiante",
+                    "areaInteres": "Desarrollo web"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Estudiante registrado",
+            "headers": {
+              "Location": {
+                "description": "URL del estudiante creado",
+                "style": "simple",
+                "schema": {
+                  "type": "string",
+                  "example": "http://localhost:8080/api/estudiantes/11"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Estudiante"
+                },
+                "example": {
+                  "id": 11,
+                  "nombreCompleto": "Ana María Torres",
+                  "correo": "ana.torres@rutaia.test",
+                  "nivelExperiencia": "Principiante",
+                  "areaInteres": "Desarrollo web",
+                  "fechaRegistro": "2026-11-02T17:05:12"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos, JSON mal formado o nivel fuera de C5",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "status": 400,
+                  "error": "Bad Request",
+                  "mensaje": "La solicitud contiene datos inválidos",
+                  "ruta": "/api/estudiantes",
+                  "fecha": "2026-11-01T10:32:00",
+                  "detalles": [
+                    {
+                      "campo": "correo",
+                      "mensaje": "debe ser un correo válido"
+                    },
+                    {
+                      "campo": "nivelExperiencia",
+                      "mensaje": "es obligatorio"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "El correo ya está registrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "status": 409,
+                  "error": "Conflict",
+                  "mensaje": "El correo valeria.gomez@rutaia.test ya está registrado",
+                  "ruta": "/api/estudiantes",
+                  "fecha": "2026-11-01T10:32:00",
+                  "detalles": [
+                    {
+                      "campo": "correo",
+                      "mensaje": "ya está registrado"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error inesperado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "status": 500,
+                  "error": "Internal Server Error",
+                  "mensaje": "Ocurrió un error inesperado. Intenta de nuevo más tarde.",
+                  "ruta": "/api/cursos",
+                  "fecha": "2026-11-01T10:32:00",
+                  "detalles": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/consultas": {
+      "post": {
+        "tags": [
+          "Consultas"
+        ],
+        "summary": "Enviar una consulta y obtener la recomendación (E-11)",
+        "description": "Valida la petición, comprueba que el estudiante exista, guarda la consulta en Pendiente, llama al flujo «Consulta RAG» de n8n con la pregunta y el nivel y el área del estudiante, y guarda el estado final. Responde 201 en cualquier estado final: Respondida (respuesta y de 1 a 5 fuentes, con los datos del curso tomados de PostgreSQL), Sin resultados o Error (con el mensaje fijo; el detalle técnico solo queda en la BD y los logs). Los 400 y 404 no crean la consulta ni llaman a n8n.",
+        "operationId": "registrarConsulta",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConsultaRequest"
+              },
+              "examples": {
+                "Consulta válida": {
+                  "description": "Consulta válida",
+                  "value": {
+                    "estudianteId": 1,
+                    "pregunta": "Quiero aprender a crear páginas web."
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Consulta registrada en su estado final",
+            "headers": {
+              "Location": {
+                "description": "URL de la consulta creada",
+                "style": "simple",
+                "schema": {
+                  "type": "string",
+                  "example": "http://localhost:8080/api/consultas/12"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsultaResultado"
+                },
+                "examples": {
+                  "Respondida": {
+                    "description": "Respondida",
+                    "value": {
+                      "consultaId": 2,
+                      "estudianteId": 1,
+                      "pregunta": "Quiero aprender a crear páginas web.",
+                      "fecha": "2026-11-02T22:34:20",
+                      "estado": "Respondida",
+                      "respuesta": "Hola, soy tu orientador de RutaIA. Para tu interés en desarrollo web y dado que eres principiante, te recomiendo seguir este orden de aprendizaje:\n\nPrimero, debes tomar Fundamentos de HTML y CSS para páginas web…",
+                      "mensaje": null,
+                      "recomendacionId": 1,
+                      "fuentes": [
+                        {
+                          "cursoId": 1,
+                          "nombre": "Fundamentos de HTML y CSS para páginas web",
+                          "descripcion": "Curso para quienes quieren aprender a crear páginas web desde cero sin experiencia previa…",
+                          "categoria": "Desarrollo web",
+                          "nivel": "Básico",
+                          "duracionHoras": 40,
+                          "similitud": 0.593
+                        },
+                        {
+                          "cursoId": 2,
+                          "nombre": "JavaScript y manipulación del DOM",
+                          "descripcion": "Aprende a programar en JavaScript para dar interactividad…",
+                          "categoria": "Desarrollo web",
+                          "nivel": "Intermedio",
+                          "duracionHoras": 50,
+                          "similitud": 0.3843
+                        }
+                      ]
+                    }
+                  },
+                  "Sin resultados": {
+                    "description": "Sin resultados",
+                    "value": {
+                      "consultaId": 18,
+                      "estudianteId": 8,
+                      "pregunta": "Quiero aprender cocina italiana.",
+                      "fecha": "2026-11-01T10:40:00",
+                      "estado": "Sin resultados",
+                      "respuesta": null,
+                      "mensaje": "No encontramos cursos del catálogo relacionados con tu necesidad. Intenta describirla con otras palabras.",
+                      "recomendacionId": null,
+                      "fuentes": []
+                    }
+                  },
+                  "Error": {
+                    "description": "Error",
+                    "value": {
+                      "consultaId": 19,
+                      "estudianteId": 7,
+                      "pregunta": "Necesito desplegar aplicaciones usando contenedores.",
+                      "fecha": "2026-11-01T10:45:00",
+                      "estado": "Error",
+                      "respuesta": null,
+                      "mensaje": "No fue posible generar la recomendación en este momento. Intenta de nuevo más tarde.",
+                      "recomendacionId": null,
+                      "fuentes": []
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Pregunta vacía o de más de 500 caracteres, estudianteId ausente o no positivo, o JSON mal formado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "status": 400,
+                  "error": "Bad Request",
+                  "mensaje": "La solicitud contiene datos inválidos",
+                  "ruta": "/api/consultas",
+                  "fecha": "2026-11-01T10:32:00",
+                  "detalles": [
+                    {
+                      "campo": "pregunta",
+                      "mensaje": "es obligatoria"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El estudiante no existe",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "status": 404,
+                  "error": "Not Found",
+                  "mensaje": "No existe un estudiante con id 999999",
+                  "ruta": "/api/consultas",
+                  "fecha": "2026-11-01T10:32:00",
+                  "detalles": []
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error inesperado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "status": 500,
+                  "error": "Internal Server Error",
+                  "mensaje": "Ocurrió un error inesperado. Intenta de nuevo más tarde.",
+                  "ruta": "/api/cursos",
+                  "fecha": "2026-11-01T10:32:00",
+                  "detalles": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/cursos": {
+      "get": {
+        "tags": [
+          "Administración de cursos"
+        ],
+        "summary": "Listar todos los cursos (E-07)",
+        "description": "Devuelve los cursos activos e inactivos, ordenados por id ascendente.",
+        "operationId": "listarCursosAdmin",
+        "responses": {
+          "200": {
+            "description": "Lista de cursos con su estado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CursoAdmin"
+                  }
+                },
+                "example": [
+                  {
+                    "id": 31,
+                    "nombre": "Introducción a TypeScript",
+                    "descripcion": "Curso práctico sobre tipos, interfaces y genéricos en TypeScript para crear aplicaciones web mantenibles.",
+                    "categoria": "Desarrollo web",
+                    "nivel": "Intermedio",
+                    "duracionHoras": 24,
+                    "activo": true
+                  }
+                ]
+              }
+            }
+          },
+          "500": {
+            "description": "Error inesperado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "status": 500,
+                  "error": "Internal Server Error",
+                  "mensaje": "Ocurrió un error inesperado. Intenta de nuevo más tarde.",
+                  "ruta": "/api/cursos",
+                  "fecha": "2026-11-01T10:32:00",
+                  "detalles": []
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Administración de cursos"
+        ],
+        "summary": "Registrar un curso (E-06)",
+        "description": "Registra un curso activo. Todos los campos son obligatorios; nombre y descripción no pueden estar vacíos, nivel acepta Básico, Intermedio o Avanzado y duracionHoras debe ser un entero mayor que cero.",
+        "operationId": "registrarCurso",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CursoRequest"
+              },
+              "examples": {
+                "Curso válido": {
+                  "description": "Curso válido",
+                  "value": {
+                    "nombre": "Introducción a TypeScript",
+                    "descripcion": "Curso práctico sobre tipos, interfaces y genéricos en TypeScript para crear aplicaciones web mantenibles.",
+                    "categoria": "Desarrollo web",
+                    "nivel": "Intermedio",
+                    "duracionHoras": 24
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Curso registrado con activo = true",
+            "headers": {
+              "Location": {
+                "description": "URL del curso creado",
+                "style": "simple",
+                "schema": {
+                  "type": "string",
+                  "example": "http://localhost:8080/api/admin/cursos/31"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursoAdmin"
+                },
+                "example": {
+                  "id": 31,
+                  "nombre": "Introducción a TypeScript",
+                  "descripcion": "Curso práctico sobre tipos, interfaces y genéricos en TypeScript para crear aplicaciones web mantenibles.",
+                  "categoria": "Desarrollo web",
+                  "nivel": "Intermedio",
+                  "duracionHoras": 24,
+                  "activo": true
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos, JSON mal formado o nivel fuera de C5",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "status": 400,
+                  "error": "Bad Request",
+                  "mensaje": "La solicitud contiene datos inválidos",
+                  "ruta": "/api/admin/cursos",
+                  "fecha": "2026-11-01T10:32:00",
+                  "detalles": [
+                    {
+                      "campo": "duracionHoras",
+                      "mensaje": "debe ser mayor que cero"
+                    },
+                    {
+                      "campo": "nombre",
+                      "mensaje": "es obligatorio"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error inesperado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "status": 500,
+                  "error": "Internal Server Error",
+                  "mensaje": "Ocurrió un error inesperado. Intenta de nuevo más tarde.",
+                  "ruta": "/api/cursos",
+                  "fecha": "2026-11-01T10:32:00",
+                  "detalles": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/cursos/{id}/desactivar": {
+      "patch": {
+        "tags": [
+          "Administración de cursos"
+        ],
+        "summary": "Desactivar un curso (E-10)",
+        "description": "Marca el curso como inactivo: deja de aparecer en el catálogo, pero sigue en la administración. Es idempotente: desactivar un curso ya inactivo devuelve 200.",
+        "operationId": "desactivarCurso",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Id del curso",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "example": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Curso con activo = false",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursoAdmin"
+                },
+                "example": {
+                  "id": 31,
+                  "nombre": "Introducción a TypeScript",
+                  "descripcion": "Curso práctico sobre tipos, interfaces y genéricos en TypeScript para crear aplicaciones web mantenibles.",
+                  "categoria": "Desarrollo web",
+                  "nivel": "Intermedio",
+                  "duracionHoras": 24,
+                  "activo": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "El id no es un número entero",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El curso no existe",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "status": 404,
+                  "error": "Not Found",
+                  "mensaje": "No existe un curso con id 999999",
+                  "ruta": "/api/admin/cursos/999999",
+                  "fecha": "2026-11-01T10:32:00",
+                  "detalles": []
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error inesperado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "status": 500,
+                  "error": "Internal Server Error",
+                  "mensaje": "Ocurrió un error inesperado. Intenta de nuevo más tarde.",
+                  "ruta": "/api/cursos",
+                  "fecha": "2026-11-01T10:32:00",
+                  "detalles": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/estudiantes/{id}": {
+      "get": {
+        "tags": [
+          "Estudiantes"
+        ],
+        "summary": "Consultar un estudiante por id (E-03)",
+        "description": "Devuelve el estudiante con el identificador indicado.",
+        "operationId": "consultarEstudiante",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Id del estudiante",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "example": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Estudiante encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Estudiante"
+                },
+                "example": {
+                  "id": 11,
+                  "nombreCompleto": "Ana María Torres",
+                  "correo": "ana.torres@rutaia.test",
+                  "nivelExperiencia": "Principiante",
+                  "areaInteres": "Desarrollo web",
+                  "fechaRegistro": "2026-11-02T17:05:12"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "El id no es un número entero",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El estudiante no existe",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "status": 404,
+                  "error": "Not Found",
+                  "mensaje": "No existe un estudiante con id 999999",
+                  "ruta": "/api/estudiantes/999999",
+                  "fecha": "2026-11-01T10:32:00",
+                  "detalles": []
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error inesperado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "status": 500,
+                  "error": "Internal Server Error",
+                  "mensaje": "Ocurrió un error inesperado. Intenta de nuevo más tarde.",
+                  "ruta": "/api/cursos",
+                  "fecha": "2026-11-01T10:32:00",
+                  "detalles": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/estudiantes/{id}/historial": {
+      "get": {
+        "tags": [
+          "Historial y detalle"
+        ],
+        "summary": "Consultar el historial de un estudiante (E-04)",
+        "description": "Devuelve las consultas del estudiante de la más reciente a la más antigua, con fecha, pregunta, estado, resumen y cursos recomendados. El resumen de una Respondida son los primeros 160 caracteres de la respuesta, más «…» si se cortó; en Sin resultados, Error y Pendiente es el mensaje fijo de C6. cursosRecomendados va por similitud descendente ([] si no hay). Para ver un registro completo, usa E-12 con su consultaId.",
+        "operationId": "consultarHistorial",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Id del estudiante",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "example": 7
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Historial del estudiante; [] si no tiene consultas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/HistorialItem"
+                  }
+                },
+                "examples": {
+                  "Con consultas": {
+                    "description": "Con consultas",
+                    "value": [
+                      {
+                        "consultaId": 4,
+                        "fecha": "2026-11-02T22:34:47",
+                        "pregunta": "Necesito desplegar aplicaciones usando contenedores.",
+                        "estado": "Respondida",
+                        "resumen": "Hola, soy tu orientador académico de RutaIA. Para tu objetivo de desplegar aplicaciones usando contenedores y tu interés en DevOps, te recomiendo seguir este or…",
+                        "cursosRecomendados": [
+                          {
+                            "cursoId": 24,
+                            "nombre": "Contenedores con Docker para desplegar aplicaciones"
+                          },
+                          {
+                            "cursoId": 26,
+                            "nombre": "Integración y entrega continua con contenedores"
+                          },
+                          {
+                            "cursoId": 25,
+                            "nombre": "Orquestación de contenedores con Kubernetes"
+                          }
+                        ]
+                      },
+                      {
+                        "consultaId": 1,
+                        "fecha": "2026-11-02T22:33:40",
+                        "pregunta": "Necesito desplegar aplicaciones usando contenedores.",
+                        "estado": "Error",
+                        "resumen": "No fue posible generar la recomendación en este momento. Intenta de nuevo más tarde.",
+                        "cursosRecomendados": []
+                      }
+                    ]
+                  },
+                  "Sin consultas": {
+                    "description": "Sin consultas",
+                    "value": []
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "El id no es un número entero",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "status": 400,
+                  "error": "Bad Request",
+                  "mensaje": "La solicitud contiene parámetros inválidos",
+                  "ruta": "/api/estudiantes/abc/historial",
+                  "fecha": "2026-11-02T23:00:00",
+                  "detalles": [
+                    {
+                      "campo": "id",
+                      "mensaje": "debe ser un número entero"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El estudiante no existe",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "status": 404,
+                  "error": "Not Found",
+                  "mensaje": "No existe un estudiante con id 999999",
+                  "ruta": "/api/estudiantes/999999/historial",
+                  "fecha": "2026-11-02T23:00:00",
+                  "detalles": []
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error inesperado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "status": 500,
+                  "error": "Internal Server Error",
+                  "mensaje": "Ocurrió un error inesperado. Intenta de nuevo más tarde.",
+                  "ruta": "/api/cursos",
+                  "fecha": "2026-11-01T10:32:00",
+                  "detalles": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/estadisticas": {
+      "get": {
+        "tags": [
+          "Estadísticas"
+        ],
+        "summary": "Consultar las estadísticas básicas (E-14)",
+        "description": "totalConsultas cuenta las consultas en cualquier estado; consultasRespondidas y consultasSinResultados, las de cada estado. promedioCalificaciones lleva 2 decimales y es null si no hay calificaciones. cursoMasRecomendado es el curso que más veces fue fuente de una recomendación; en empate gana el menor cursoId, y es null si no hay recomendaciones.",
+        "operationId": "consultarEstadisticas",
+        "responses": {
+          "200": {
+            "description": "Estadísticas calculadas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Estadisticas"
+                },
+                "examples": {
+                  "Con calificaciones": {
+                    "description": "Con calificaciones",
+                    "value": {
+                      "totalConsultas": 5,
+                      "consultasRespondidas": 3,
+                      "consultasSinResultados": 1,
+                      "promedioCalificaciones": 4.33,
+                      "cursoMasRecomendado": {
+                        "cursoId": 1,
+                        "nombre": "Fundamentos de HTML y CSS para páginas web",
+                        "vecesRecomendado": 1
+                      }
+                    }
+                  },
+                  "Sin datos": {
+                    "description": "Sin datos",
+                    "value": {
+                      "totalConsultas": 0,
+                      "consultasRespondidas": 0,
+                      "consultasSinResultados": 0,
+                      "promedioCalificaciones": null,
+                      "cursoMasRecomendado": null
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error inesperado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "status": 500,
+                  "error": "Internal Server Error",
+                  "mensaje": "Ocurrió un error inesperado. Intenta de nuevo más tarde.",
+                  "ruta": "/api/cursos",
+                  "fecha": "2026-11-01T10:32:00",
+                  "detalles": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cursos": {
+      "get": {
+        "tags": [
+          "Catálogo de cursos"
+        ],
+        "summary": "Listar el catálogo de cursos activos (E-05)",
+        "description": "Devuelve solo los cursos activos, ordenados por id ascendente, con nombre, descripción, categoría, nivel y duración. Los filtros son opcionales y se combinan; la categoría debe coincidir exactamente.",
+        "operationId": "listarCatalogo",
+        "parameters": [
+          {
+            "name": "categoria",
+            "in": "query",
+            "description": "Categoría exacta",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "Desarrollo web"
+          },
+          {
+            "name": "nivel",
+            "in": "query",
+            "description": "Nivel del curso",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Básico",
+                "Intermedio",
+                "Avanzado"
+              ]
+            },
+            "example": "Básico"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cursos activos que cumplen los filtros (puede ser vacía)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CursoCatalogo"
+                  }
+                },
+                "example": [
+                  {
+                    "id": 1,
+                    "nombre": "Fundamentos de HTML y CSS para páginas web",
+                    "descripcion": "Curso para quienes quieren aprender a crear páginas web desde cero...",
+                    "categoria": "Desarrollo web",
+                    "nivel": "Básico",
+                    "duracionHoras": 40
+                  }
+                ]
+              }
+            }
+          },
+          "400": {
+            "description": "Nivel fuera de C5",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "status": 400,
+                  "error": "Bad Request",
+                  "mensaje": "La solicitud contiene parámetros inválidos",
+                  "ruta": "/api/cursos",
+                  "fecha": "2026-11-01T10:32:00",
+                  "detalles": [
+                    {
+                      "campo": "nivel",
+                      "mensaje": "debe ser Básico, Intermedio o Avanzado"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error inesperado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "status": 500,
+                  "error": "Internal Server Error",
+                  "mensaje": "Ocurrió un error inesperado. Intenta de nuevo más tarde.",
+                  "ruta": "/api/cursos",
+                  "fecha": "2026-11-01T10:32:00",
+                  "detalles": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/consultas/{id}": {
+      "get": {
+        "tags": [
+          "Historial y detalle"
+        ],
+        "summary": "Ver el detalle completo de una consulta (E-12)",
+        "description": "Devuelve lo mismo que respondió E-11 para esa consulta (fecha, pregunta, estado, respuesta o mensaje fijo, recomendacionId y fuentes por similitud descendente, con los datos del curso de PostgreSQL) más `calificacion`: null si la recomendación no fue calificada o si la consulta no terminó Respondida.",
+        "operationId": "consultarDetalleConsulta",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Id de la consulta",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "example": 2
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Detalle de la consulta",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsultaDetalle"
+                },
+                "examples": {
+                  "Respondida y calificada": {
+                    "description": "Respondida y calificada",
+                    "value": {
+                      "consultaId": 2,
+                      "estudianteId": 1,
+                      "pregunta": "Quiero aprender a crear páginas web.",
+                      "fecha": "2026-11-02T22:34:20",
+                      "estado": "Respondida",
+                      "respuesta": "Hola, soy tu orientador de RutaIA. Para tu interés en desarrollo web y dado que eres principiante, te recomiendo seguir este orden de aprendizaje:\n\nPrimero, debes tomar Fundamentos de HTML y CSS para páginas web…",
+                      "mensaje": null,
+                      "recomendacionId": 1,
+                      "fuentes": [
+                        {
+                          "cursoId": 1,
+                          "nombre": "Fundamentos de HTML y CSS para páginas web",
+                          "descripcion": "Curso para quienes quieren aprender a crear páginas web desde cero sin experiencia previa…",
+                          "categoria": "Desarrollo web",
+                          "nivel": "Básico",
+                          "duracionHoras": 40,
+                          "similitud": 0.593
+                        },
+                        {
+                          "cursoId": 2,
+                          "nombre": "JavaScript y manipulación del DOM",
+                          "descripcion": "Aprende a programar en JavaScript para dar interactividad…",
+                          "categoria": "Desarrollo web",
+                          "nivel": "Intermedio",
+                          "duracionHoras": 50,
+                          "similitud": 0.3843
+                        }
+                      ],
+                      "calificacion": {
+                        "puntuacion": 5,
+                        "comentario": "La ruta me sirvió para saber por dónde empezar.",
+                        "fecha": "2026-11-02T22:59:15"
+                      }
+                    }
+                  },
+                  "Respondida sin calificar": {
+                    "description": "Respondida sin calificar",
+                    "value": {
+                      "consultaId": 4,
+                      "estudianteId": 7,
+                      "pregunta": "Necesito desplegar aplicaciones usando contenedores.",
+                      "fecha": "2026-11-02T22:34:47",
+                      "estado": "Respondida",
+                      "respuesta": "Hola, soy tu orientador académico de RutaIA. Para tu objetivo de desplegar aplicaciones usando contenedores y tu interés en DevOps, te recomiendo seguir este orden de aprendizaje…",
+                      "mensaje": null,
+                      "recomendacionId": 3,
+                      "fuentes": [
+                        {
+                          "cursoId": 24,
+                          "nombre": "Contenedores con Docker para desplegar aplicaciones",
+                          "descripcion": "Aprende a empaquetar y desplegar aplicaciones usando contenedores con Docker…",
+                          "categoria": "Herramientas tecnológicas",
+                          "nivel": "Intermedio",
+                          "duracionHoras": 30,
+                          "similitud": 0.6088
+                        },
+                        {
+                          "cursoId": 26,
+                          "nombre": "Integración y entrega continua con contenedores",
+                          "descripcion": "Aprende a automatizar la construcción, las pruebas y el despliegue de aplicaciones…",
+                          "categoria": "Herramientas tecnológicas",
+                          "nivel": "Intermedio",
+                          "duracionHoras": 35,
+                          "similitud": 0.484
+                        }
+                      ],
+                      "calificacion": null
+                    }
+                  },
+                  "Sin resultados": {
+                    "description": "Sin resultados",
+                    "value": {
+                      "consultaId": 5,
+                      "estudianteId": 8,
+                      "pregunta": "Quiero aprender cocina italiana.",
+                      "fecha": "2026-11-02T22:35:03",
+                      "estado": "Sin resultados",
+                      "respuesta": null,
+                      "mensaje": "No encontramos cursos del catálogo relacionados con tu necesidad. Intenta describirla con otras palabras.",
+                      "recomendacionId": null,
+                      "fuentes": [],
+                      "calificacion": null
+                    }
+                  },
+                  "Error": {
+                    "description": "Error",
+                    "value": {
+                      "consultaId": 1,
+                      "estudianteId": 7,
+                      "pregunta": "Necesito desplegar aplicaciones usando contenedores.",
+                      "fecha": "2026-11-02T22:33:40",
+                      "estado": "Error",
+                      "respuesta": null,
+                      "mensaje": "No fue posible generar la recomendación en este momento. Intenta de nuevo más tarde.",
+                      "recomendacionId": null,
+                      "fuentes": [],
+                      "calificacion": null
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "El id no es un número entero",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "status": 400,
+                  "error": "Bad Request",
+                  "mensaje": "La solicitud contiene parámetros inválidos",
+                  "ruta": "/api/consultas/abc",
+                  "fecha": "2026-11-02T23:00:00",
+                  "detalles": [
+                    {
+                      "campo": "id",
+                      "mensaje": "debe ser un número entero"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La consulta no existe",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "status": 404,
+                  "error": "Not Found",
+                  "mensaje": "No existe una consulta con id 999999",
+                  "ruta": "/api/consultas/999999",
+                  "fecha": "2026-11-02T23:00:00",
+                  "detalles": []
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error inesperado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "status": 500,
+                  "error": "Internal Server Error",
+                  "mensaje": "Ocurrió un error inesperado. Intenta de nuevo más tarde.",
+                  "ruta": "/api/cursos",
+                  "fecha": "2026-11-01T10:32:00",
+                  "detalles": []
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CursoRequest": {
+        "type": "object",
+        "description": "Datos para registrar o actualizar un curso",
+        "properties": {
+          "nombre": {
+            "type": "string",
+            "example": "Introducción a TypeScript",
+            "maxLength": 150,
+            "minLength": 0
+          },
+          "descripcion": {
+            "type": "string",
+            "example": "Curso práctico sobre tipos, interfaces y genéricos en TypeScript para crear aplicaciones web mantenibles.",
+            "minLength": 1
+          },
+          "categoria": {
+            "type": "string",
+            "example": "Desarrollo web",
+            "maxLength": 80,
+            "minLength": 0
+          },
+          "nivel": {
+            "type": "string",
+            "enum": [
+              "Básico",
+              "Intermedio",
+              "Avanzado"
+            ],
+            "example": "Intermedio"
+          },
+          "duracionHoras": {
+            "type": "integer",
+            "format": "int32",
+            "example": 24,
+            "exclusiveMinimum": 0,
+            "minimum": 1
+          }
+        },
+        "required": [
+          "categoria",
+          "descripcion",
+          "duracionHoras",
+          "nivel",
+          "nombre"
+        ]
+      },
+      "CursoAdmin": {
+        "type": "object",
+        "description": "Curso con su estado, para administración",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "example": 31
+          },
+          "nombre": {
+            "type": "string",
+            "example": "Introducción a TypeScript"
+          },
+          "descripcion": {
+            "type": "string",
+            "example": "Curso práctico sobre tipos, interfaces y genéricos en TypeScript para crear aplicaciones web mantenibles."
+          },
+          "categoria": {
+            "type": "string",
+            "example": "Desarrollo web"
+          },
+          "nivel": {
+            "type": "string",
+            "enum": [
+              "Básico",
+              "Intermedio",
+              "Avanzado"
+            ],
+            "example": "Intermedio"
+          },
+          "duracionHoras": {
+            "type": "integer",
+            "format": "int32",
+            "example": 24
+          },
+          "activo": {
+            "type": "boolean",
+            "example": true
+          }
+        }
+      },
+      "DetalleError": {
+        "type": "object",
+        "properties": {
+          "campo": {
+            "type": "string",
+            "example": "correo"
+          },
+          "mensaje": {
+            "type": "string",
+            "example": "debe ser un correo válido"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "description": "Cuerpo de toda respuesta 4xx y 5xx (C6)",
+        "properties": {
+          "status": {
+            "type": "integer",
+            "format": "int32",
+            "example": 400
+          },
+          "error": {
+            "type": "string",
+            "example": "Bad Request"
+          },
+          "mensaje": {
+            "type": "string",
+            "example": "La solicitud contiene datos inválidos"
+          },
+          "ruta": {
+            "type": "string",
+            "example": "/api/estudiantes"
+          },
+          "fecha": {
+            "type": "string",
+            "example": "2026-11-01T10:32:00"
+          },
+          "detalles": {
+            "type": "array",
+            "description": "Errores por campo; vacío si el error no es de campos",
+            "items": {
+              "$ref": "#/components/schemas/DetalleError"
+            }
+          }
+        }
+      },
+      "CalificacionRequest": {
+        "type": "object",
+        "description": "Calificación de una recomendación (RF 17)",
+        "properties": {
+          "puntuacion": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Entero de 1 a 5; un decimal se rechaza",
+            "example": 5,
+            "maximum": 5,
+            "minimum": 1
+          },
+          "comentario": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Opcional. Se guarda sin espacios al inicio o al final; vacío o solo espacios se guarda como null",
+            "example": "La ruta me sirvió para saber por dónde empezar.",
+            "maxLength": 500,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "puntuacion"
+        ]
+      },
+      "Calificacion": {
+        "type": "object",
+        "description": "Calificación registrada de una recomendación",
+        "properties": {
+          "recomendacionId": {
+            "type": "integer",
+            "format": "int64",
+            "example": 1
+          },
+          "puntuacion": {
+            "type": "integer",
+            "format": "int32",
+            "example": 5,
+            "maximum": 5,
+            "minimum": 1
+          },
+          "comentario": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "example": "La ruta me sirvió para saber por dónde empezar."
+          },
+          "fecha": {
+            "type": "string",
+            "description": "ISO-8601 sin zona, hora local",
+            "example": "2026-11-02T23:10:05"
+          }
+        }
+      },
+      "EstudianteRequest": {
+        "type": "object",
+        "description": "Datos para registrar un estudiante",
+        "properties": {
+          "nombreCompleto": {
+            "type": "string",
+            "example": "Ana María Torres",
+            "maxLength": 120,
+            "minLength": 0
+          },
+          "correo": {
+            "type": "string",
+            "format": "email",
+            "description": "Se guarda sin espacios al inicio o al final y en minúsculas",
+            "example": "ana.torres@rutaia.test",
+            "maxLength": 254,
+            "minLength": 0
+          },
+          "nivelExperiencia": {
+            "type": "string",
+            "enum": [
+              "Principiante",
+              "Intermedio",
+              "Avanzado"
+            ],
+            "example": "Principiante"
+          },
+          "areaInteres": {
+            "type": "string",
+            "example": "Desarrollo web",
+            "maxLength": 100,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "areaInteres",
+          "correo",
+          "nivelExperiencia",
+          "nombreCompleto"
+        ]
+      },
+      "Estudiante": {
+        "type": "object",
+        "description": "Estudiante registrado",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "example": 11
+          },
+          "nombreCompleto": {
+            "type": "string",
+            "example": "Ana María Torres"
+          },
+          "correo": {
+            "type": "string",
+            "example": "ana.torres@rutaia.test"
+          },
+          "nivelExperiencia": {
+            "type": "string",
+            "enum": [
+              "Principiante",
+              "Intermedio",
+              "Avanzado"
+            ],
+            "example": "Principiante"
+          },
+          "areaInteres": {
+            "type": "string",
+            "example": "Desarrollo web"
+          },
+          "fechaRegistro": {
+            "type": "string",
+            "description": "ISO-8601 sin zona, hora local",
+            "example": "2026-11-02T17:05:12"
+          }
+        }
+      },
+      "ConsultaRequest": {
+        "type": "object",
+        "description": "Necesidad de formación escrita por el estudiante",
+        "properties": {
+          "estudianteId": {
+            "type": "integer",
+            "format": "int64",
+            "example": 1,
+            "exclusiveMinimum": 0,
+            "minimum": 1
+          },
+          "pregunta": {
+            "type": "string",
+            "description": "Se guarda sin espacios al inicio o al final",
+            "example": "Quiero aprender a crear páginas web.",
+            "maxLength": 500,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "estudianteId",
+          "pregunta"
+        ]
+      },
+      "ConsultaResultado": {
+        "type": "object",
+        "description": "Consulta con su estado final y, si fue Respondida, la recomendación",
+        "properties": {
+          "consultaId": {
+            "type": "integer",
+            "format": "int64",
+            "example": 12
+          },
+          "estudianteId": {
+            "type": "integer",
+            "format": "int64",
+            "example": 1
+          },
+          "pregunta": {
+            "type": "string",
+            "example": "Quiero aprender a crear páginas web."
+          },
+          "fecha": {
+            "type": "string",
+            "description": "ISO-8601 sin zona, hora local",
+            "example": "2026-11-01T10:32:00"
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "Pendiente",
+              "Respondida",
+              "Sin resultados",
+              "Error"
+            ],
+            "example": "Respondida"
+          },
+          "respuesta": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Texto plano del modelo; null si el estado no es Respondida",
+            "example": "Te sugiero empezar por…"
+          },
+          "mensaje": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Mensaje para el estudiante cuando no hay respuesta; null si el estado es Respondida"
+          },
+          "recomendacionId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "null si el estado no es Respondida",
+            "example": 7
+          },
+          "fuentes": {
+            "type": "array",
+            "description": "De 1 a 5 fuentes por similitud descendente si es Respondida; [] en otro caso",
+            "items": {
+              "$ref": "#/components/schemas/Fuente"
+            }
+          }
+        }
+      },
+      "Fuente": {
+        "type": "object",
+        "description": "Curso del catálogo usado como fuente de la recomendación (datos de PostgreSQL)",
+        "properties": {
+          "cursoId": {
+            "type": "integer",
+            "format": "int64",
+            "example": 1
+          },
+          "nombre": {
+            "type": "string",
+            "example": "Fundamentos de HTML y CSS para páginas web"
+          },
+          "descripcion": {
+            "type": "string",
+            "example": "Curso para quienes quieren aprender a crear páginas web desde cero..."
+          },
+          "categoria": {
+            "type": "string",
+            "example": "Desarrollo web"
+          },
+          "nivel": {
+            "type": "string",
+            "enum": [
+              "Básico",
+              "Intermedio",
+              "Avanzado"
+            ],
+            "example": "Básico"
+          },
+          "duracionHoras": {
+            "type": "integer",
+            "format": "int32",
+            "example": 40
+          },
+          "similitud": {
+            "type": "number",
+            "format": "double",
+            "description": "Similitud de Qdrant entre la pregunta y el curso, con 4 decimales",
+            "example": 0.6421,
+            "maximum": 1,
+            "minimum": 0
+          }
+        }
+      },
+      "CursoRecomendado": {
+        "type": "object",
+        "description": "Curso usado como fuente de la recomendación",
+        "properties": {
+          "cursoId": {
+            "type": "integer",
+            "format": "int64",
+            "example": 1
+          },
+          "nombre": {
+            "type": "string",
+            "example": "Fundamentos de HTML y CSS para páginas web"
+          }
+        }
+      },
+      "HistorialItem": {
+        "type": "object",
+        "description": "Registro del historial de un estudiante (RF 16)",
+        "properties": {
+          "consultaId": {
+            "type": "integer",
+            "format": "int64",
+            "example": 2
+          },
+          "fecha": {
+            "type": "string",
+            "description": "ISO-8601 sin zona, hora local",
+            "example": "2026-11-02T22:34:20"
+          },
+          "pregunta": {
+            "type": "string",
+            "example": "Quiero aprender a crear páginas web."
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "Pendiente",
+              "Respondida",
+              "Sin resultados",
+              "Error"
+            ],
+            "example": "Respondida"
+          },
+          "resumen": {
+            "type": "string",
+            "description": "Respondida: los primeros 160 caracteres de la respuesta, más «…» si se cortó. Sin resultados, Error y Pendiente: el mensaje fijo de C6"
+          },
+          "cursosRecomendados": {
+            "type": "array",
+            "description": "Fuentes de la recomendación por similitud descendente; [] si no hay",
+            "items": {
+              "$ref": "#/components/schemas/CursoRecomendado"
+            }
+          }
+        }
+      },
+      "CursoMasRecomendado": {
+        "type": "object",
+        "description": "Curso que más veces fue fuente de una recomendación",
+        "properties": {
+          "cursoId": {
+            "type": "integer",
+            "format": "int64",
+            "example": 1
+          },
+          "nombre": {
+            "type": "string",
+            "example": "Fundamentos de HTML y CSS para páginas web"
+          },
+          "vecesRecomendado": {
+            "type": "integer",
+            "format": "int64",
+            "example": 1
+          }
+        }
+      },
+      "Estadisticas": {
+        "type": "object",
+        "description": "Estadísticas básicas de uso (RF 18)",
+        "properties": {
+          "totalConsultas": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Todas las consultas, en cualquier estado",
+            "example": 5
+          },
+          "consultasRespondidas": {
+            "type": "integer",
+            "format": "int64",
+            "example": 3
+          },
+          "consultasSinResultados": {
+            "type": "integer",
+            "format": "int64",
+            "example": 1
+          },
+          "promedioCalificaciones": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Con 2 decimales; null si no hay calificaciones",
+            "example": 4.33
+          },
+          "cursoMasRecomendado": {
+            "type": "null",
+            "$ref": "#/components/schemas/CursoMasRecomendado",
+            "description": "Curso con más filas en recomendacion_fuente; en empate gana el menor cursoId; null si no hay recomendaciones"
+          }
+        }
+      },
+      "CursoCatalogo": {
+        "type": "object",
+        "description": "Curso activo del catálogo",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "example": 1
+          },
+          "nombre": {
+            "type": "string",
+            "example": "Fundamentos de HTML y CSS para páginas web"
+          },
+          "descripcion": {
+            "type": "string",
+            "example": "Curso para quienes quieren aprender a crear páginas web desde cero..."
+          },
+          "categoria": {
+            "type": "string",
+            "example": "Desarrollo web"
+          },
+          "nivel": {
+            "type": "string",
+            "enum": [
+              "Básico",
+              "Intermedio",
+              "Avanzado"
+            ],
+            "example": "Básico"
+          },
+          "duracionHoras": {
+            "type": "integer",
+            "format": "int32",
+            "example": 40
+          }
+        }
+      },
+      "CalificacionDetalle": {
+        "type": "object",
+        "description": "Calificación de la recomendación de la consulta",
+        "properties": {
+          "puntuacion": {
+            "type": "integer",
+            "format": "int32",
+            "example": 5,
+            "maximum": 5,
+            "minimum": 1
+          },
+          "comentario": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "example": "La ruta me sirvió para saber por dónde empezar."
+          },
+          "fecha": {
+            "type": "string",
+            "description": "ISO-8601 sin zona, hora local",
+            "example": "2026-11-02T23:10:05"
+          }
+        }
+      },
+      "ConsultaDetalle": {
+        "type": "object",
+        "description": "Detalle completo de una consulta: lo mismo que devolvió E-11 más la calificación de la recomendación",
+        "properties": {
+          "consultaId": {
+            "type": "integer",
+            "format": "int64",
+            "example": 2
+          },
+          "estudianteId": {
+            "type": "integer",
+            "format": "int64",
+            "example": 1
+          },
+          "pregunta": {
+            "type": "string",
+            "example": "Quiero aprender a crear páginas web."
+          },
+          "fecha": {
+            "type": "string",
+            "description": "ISO-8601 sin zona, hora local",
+            "example": "2026-11-02T22:34:20"
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "Pendiente",
+              "Respondida",
+              "Sin resultados",
+              "Error"
+            ],
+            "example": "Respondida"
+          },
+          "respuesta": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Texto plano del modelo; null si el estado no es Respondida",
+            "example": "Hola, soy tu orientador de RutaIA…"
+          },
+          "mensaje": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Mensaje para el estudiante cuando no hay respuesta; null si el estado es Respondida"
+          },
+          "recomendacionId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "null si el estado no es Respondida",
+            "example": 1
+          },
+          "fuentes": {
+            "type": "array",
+            "description": "De 1 a 5 fuentes por similitud descendente si es Respondida; [] en otro caso",
+            "items": {
+              "$ref": "#/components/schemas/Fuente"
+            }
+          },
+          "calificacion": {
+            "type": "null",
+            "$ref": "#/components/schemas/CalificacionDetalle",
+            "description": "null si la recomendación no tiene calificación o no hay recomendación"
+          }
+        }
+      }
+    }
+  }
+}
