@@ -1,6 +1,6 @@
 [
   {
-    "updatedAt": "2026-11-03T04:16:08.000Z",
+    "updatedAt": "2026-11-03T17:01:45.000Z",
     "createdAt": "2026-11-03T00:05:12.720Z",
     "id": "RutaIAConsultaRAG",
     "name": "RutaIA - Consulta RAG",
@@ -59,7 +59,7 @@
               {
                 "id": "a5c0e0b0-0000-4000-8000-000000000103",
                 "name": "modeloLlm",
-                "value": "google/gemma-4-26b-a4b-it:free",
+                "value": "google/gemma-4-31b-it",
                 "type": "string"
               },
               {
@@ -673,9 +673,9 @@
     "meta": null,
     "nodeGroups": [],
     "pinData": {},
-    "versionId": "4004b548-b89d-4705-bfa7-9a04fc8a3a38",
-    "activeVersionId": "4004b548-b89d-4705-bfa7-9a04fc8a3a38",
-    "versionCounter": 6,
+    "versionId": "d8a5f792-42fc-462f-a3e9-915d7fa1ccf7",
+    "activeVersionId": "d8a5f792-42fc-462f-a3e9-915d7fa1ccf7",
+    "versionCounter": 8,
     "triggerCount": 1,
     "sourceWorkflowId": null,
     "tags": [],

@@ -1,0 +1,521 @@
+RutaIA — Etapa de integración: verificación del contrato (docs/contrato.md), conexión y secretos
+Generado: 2026-11-03 11:41 hora local (UTC−6), sobre el estado final de la integración. 0 solicitudes a OpenRouter.
+
+######## C3 — estructura, .gitignore, .gitattributes y gradlew
+$ git ls-files --eol backend/gradlew
+i/lf    w/lf    attr/text eol=lf      	backend/gradlew
+$ git ls-files -s backend/gradlew
+100755 249efbb032ce46a80c687c0723eb172e85f6a136 0	backend/gradlew
+$ cat .gitignore
+# Secretos: solo se versiona la plantilla .env.example
+.env
+*.env
+!.env.example
+
+# Dependencias
+node_modules/
+
+# Compilados y salidas de Gradle / IDE
+build/
+.gradle/
+out/
+bin/
+target/
+*.class
+
+# Registros
+*.log
+
+# Editores
+.idea/
+.vscode/
+$ cat .gitattributes
+* text=auto eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+$ ls backend/src/main/java/com/rutaia
+RutaiaApiApplication.java
+configuracion
+controlador
+dto
+entidad
+excepcion
+integracion
+repositorio
+servicio
+$ git ls-files frontend | grep "[A-Z]" (nombres en minúsculas)
+(ninguno con mayúsculas)
+
+######## C4 y C5 — esquema vivo (information_schema, pg_constraint, pg_indexes) vía docker compose exec
+--- versión y codificación
+             version             | codificacion 
+---------------------------------+--------------
+ 17.11 (Debian 17.11-1.pgdg13+2) | UTF8
+
+--- columnas (information_schema.columns)
+        tabla         |      columna      |            tipo             | nulo |            defecto             |    identidad    
+----------------------+-------------------+-----------------------------+------+--------------------------------+-----------------
+ calificacion         | id                | bigint                      | NO   |                                | IDENTITY ALWAYS
+ calificacion         | recomendacion_id  | bigint                      | NO   |                                | 
+ calificacion         | puntuacion        | integer                     | NO   |                                | 
+ calificacion         | comentario        | character varying(500)      | YES  |                                | 
+ calificacion         | fecha             | timestamp without time zone | NO   | CURRENT_TIMESTAMP              | 
+ consulta             | id                | bigint                      | NO   |                                | IDENTITY ALWAYS
+ consulta             | estudiante_id     | bigint                      | NO   |                                | 
+ consulta             | pregunta          | character varying(500)      | NO   |                                | 
+ consulta             | fecha             | timestamp without time zone | NO   | CURRENT_TIMESTAMP              | 
+ consulta             | estado            | character varying(20)       | NO   | 'Pendiente'::character varying | 
+ consulta             | detalle_error     | text                        | YES  |                                | 
+ curso                | id                | bigint                      | NO   |                                | IDENTITY ALWAYS
+ curso                | nombre            | character varying(150)      | NO   |                                | 
+ curso                | descripcion       | text                        | NO   |                                | 
+ curso                | categoria         | character varying(80)       | NO   |                                | 
+ curso                | nivel             | character varying(20)       | NO   |                                | 
+ curso                | duracion_horas    | integer                     | NO   |                                | 
+ curso                | activo            | boolean                     | NO   | true                           | 
+ estudiante           | id                | bigint                      | NO   |                                | IDENTITY ALWAYS
+ estudiante           | nombre_completo   | character varying(120)      | NO   |                                | 
+ estudiante           | correo            | character varying(254)      | NO   |                                | 
+ estudiante           | nivel_experiencia | character varying(20)       | NO   |                                | 
+ estudiante           | area_interes      | character varying(100)      | NO   |                                | 
+ estudiante           | fecha_registro    | timestamp without time zone | NO   | CURRENT_TIMESTAMP              | 
+ recomendacion        | id                | bigint                      | NO   |                                | IDENTITY ALWAYS
+ recomendacion        | consulta_id       | bigint                      | NO   |                                | 
+ recomendacion        | respuesta         | text                        | NO   |                                | 
+ recomendacion        | fecha             | timestamp without time zone | NO   | CURRENT_TIMESTAMP              | 
+ recomendacion_fuente | id                | bigint                      | NO   |                                | IDENTITY ALWAYS
+ recomendacion_fuente | recomendacion_id  | bigint                      | NO   |                                | 
+ recomendacion_fuente | curso_id          | bigint                      | NO   |                                | 
+ recomendacion_fuente | similitud         | double precision            | NO   |                                | 
+
+--- restricciones (pg_constraint)
+        tabla         |               nombre                | tipo |                                                                                     definicion                                                                                     |   borrado   
+----------------------+-------------------------------------+------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-------------
+ estudiante           | ck_estudiante_area_no_vacia         | c    | CHECK ((btrim((area_interes)::text) <> ''::text))                                                                                                                                  | 
+ estudiante           | ck_estudiante_correo_normalizado    | c    | CHECK (((correo)::text = lower(btrim((correo)::text))))                                                                                                                            | 
+ estudiante           | ck_estudiante_nivel                 | c    | CHECK (((nivel_experiencia)::text = ANY ((ARRAY['Principiante'::character varying, 'Intermedio'::character varying, 'Avanzado'::character varying])::text[])))                     | 
+ estudiante           | ck_estudiante_nombre_no_vacio       | c    | CHECK ((btrim((nombre_completo)::text) <> ''::text))                                                                                                                               | 
+ estudiante           | pk_estudiante                       | p    | PRIMARY KEY (id)                                                                                                                                                                   | 
+ estudiante           | uq_estudiante_correo                | u    | UNIQUE (correo)                                                                                                                                                                    | 
+ curso                | ck_curso_categoria_no_vacia         | c    | CHECK ((btrim((categoria)::text) <> ''::text))                                                                                                                                     | 
+ curso                | ck_curso_descripcion_no_vacia       | c    | CHECK ((btrim(descripcion) <> ''::text))                                                                                                                                           | 
+ curso                | ck_curso_duracion_positiva          | c    | CHECK ((duracion_horas > 0))                                                                                                                                                       | 
+ curso                | ck_curso_nivel                      | c    | CHECK (((nivel)::text = ANY ((ARRAY['Básico'::character varying, 'Intermedio'::character varying, 'Avanzado'::character varying])::text[])))                                       | 
+ curso                | ck_curso_nombre_no_vacio            | c    | CHECK ((btrim((nombre)::text) <> ''::text))                                                                                                                                        | 
+ curso                | pk_curso                            | p    | PRIMARY KEY (id)                                                                                                                                                                   | 
+ consulta             | ck_consulta_estado                  | c    | CHECK (((estado)::text = ANY ((ARRAY['Pendiente'::character varying, 'Respondida'::character varying, 'Sin resultados'::character varying, 'Error'::character varying])::text[]))) | 
+ consulta             | ck_consulta_pregunta_no_vacia       | c    | CHECK ((btrim((pregunta)::text) <> ''::text))                                                                                                                                      | 
+ consulta             | fk_consulta_estudiante              | f    | FOREIGN KEY (estudiante_id) REFERENCES estudiante(id)                                                                                                                              | on delete a
+ consulta             | pk_consulta                         | p    | PRIMARY KEY (id)                                                                                                                                                                   | 
+ recomendacion        | ck_recomendacion_respuesta_no_vacia | c    | CHECK ((btrim(respuesta) <> ''::text))                                                                                                                                             | 
+ recomendacion        | fk_recomendacion_consulta           | f    | FOREIGN KEY (consulta_id) REFERENCES consulta(id)                                                                                                                                  | on delete a
+ recomendacion        | pk_recomendacion                    | p    | PRIMARY KEY (id)                                                                                                                                                                   | 
+ recomendacion        | uq_recomendacion_consulta           | u    | UNIQUE (consulta_id)                                                                                                                                                               | 
+ recomendacion_fuente | ck_fuente_similitud                 | c    | CHECK (((similitud >= (0)::double precision) AND (similitud <= (1)::double precision)))                                                                                            | 
+ recomendacion_fuente | fk_fuente_curso                     | f    | FOREIGN KEY (curso_id) REFERENCES curso(id)                                                                                                                                        | on delete a
+ recomendacion_fuente | fk_fuente_recomendacion             | f    | FOREIGN KEY (recomendacion_id) REFERENCES recomendacion(id)                                                                                                                        | on delete a
+ recomendacion_fuente | pk_recomendacion_fuente             | p    | PRIMARY KEY (id)                                                                                                                                                                   | 
+ recomendacion_fuente | uq_fuente_recomendacion_curso       | u    | UNIQUE (recomendacion_id, curso_id)                                                                                                                                                | 
+ calificacion         | ck_calificacion_puntuacion          | c    | CHECK (((puntuacion >= 1) AND (puntuacion <= 5)))                                                                                                                                  | 
+ calificacion         | fk_calificacion_recomendacion       | f    | FOREIGN KEY (recomendacion_id) REFERENCES recomendacion(id)                                                                                                                        | on delete a
+ calificacion         | pk_calificacion                     | p    | PRIMARY KEY (id)                                                                                                                                                                   | 
+ calificacion         | uq_calificacion_recomendacion       | u    | UNIQUE (recomendacion_id)                                                                                                                                                          | 
+
+--- índices (pg_indexes)
+        tabla         |            indice             |                                                        definicion                                                         
+----------------------+-------------------------------+---------------------------------------------------------------------------------------------------------------------------
+ calificacion         | pk_calificacion               | CREATE UNIQUE INDEX pk_calificacion ON public.calificacion USING btree (id)
+ calificacion         | uq_calificacion_recomendacion | CREATE UNIQUE INDEX uq_calificacion_recomendacion ON public.calificacion USING btree (recomendacion_id)
+ consulta             | idx_consulta_estado           | CREATE INDEX idx_consulta_estado ON public.consulta USING btree (estado)
+ consulta             | idx_consulta_estudiante_fecha | CREATE INDEX idx_consulta_estudiante_fecha ON public.consulta USING btree (estudiante_id, fecha DESC)
+ consulta             | pk_consulta                   | CREATE UNIQUE INDEX pk_consulta ON public.consulta USING btree (id)
+ curso                | idx_curso_catalogo            | CREATE INDEX idx_curso_catalogo ON public.curso USING btree (activo, categoria, nivel)
+ curso                | pk_curso                      | CREATE UNIQUE INDEX pk_curso ON public.curso USING btree (id)
+ estudiante           | pk_estudiante                 | CREATE UNIQUE INDEX pk_estudiante ON public.estudiante USING btree (id)
+ estudiante           | uq_estudiante_correo          | CREATE UNIQUE INDEX uq_estudiante_correo ON public.estudiante USING btree (correo)
+ recomendacion        | pk_recomendacion              | CREATE UNIQUE INDEX pk_recomendacion ON public.recomendacion USING btree (id)
+ recomendacion        | uq_recomendacion_consulta     | CREATE UNIQUE INDEX uq_recomendacion_consulta ON public.recomendacion USING btree (consulta_id)
+ recomendacion_fuente | idx_fuente_curso              | CREATE INDEX idx_fuente_curso ON public.recomendacion_fuente USING btree (curso_id)
+ recomendacion_fuente | pk_recomendacion_fuente       | CREATE UNIQUE INDEX pk_recomendacion_fuente ON public.recomendacion_fuente USING btree (id)
+ recomendacion_fuente | uq_fuente_recomendacion_curso | CREATE UNIQUE INDEX uq_fuente_recomendacion_curso ON public.recomendacion_fuente USING btree (recomendacion_id, curso_id)
+
+--- conteos actuales
+ estudiantes | cursos | activos | consultas | recomendaciones | fuentes | calificaciones 
+-------------+--------+---------+-----------+-----------------+---------+----------------
+          10 |     30 |      28 |        15 |               8 |      29 |              5
+
+     estado     | count 
+----------------+-------
+ Error          |     6
+ Respondida     |     8
+ Sin resultados |     1
+
+
+######## C5 — enums de Java y JSON real
+backend/src/main/java/com/rutaia/entidad/EstadoConsulta.java:14:	PENDIENTE("Pendiente"),
+backend/src/main/java/com/rutaia/entidad/EstadoConsulta.java:15:	RESPONDIDA("Respondida"),
+backend/src/main/java/com/rutaia/entidad/EstadoConsulta.java:16:	SIN_RESULTADOS("Sin resultados"),
+backend/src/main/java/com/rutaia/entidad/EstadoConsulta.java:17:	ERROR("Error");
+backend/src/main/java/com/rutaia/entidad/NivelCurso.java:11:	BASICO("Básico"),
+backend/src/main/java/com/rutaia/entidad/NivelCurso.java:12:	INTERMEDIO("Intermedio"),
+backend/src/main/java/com/rutaia/entidad/NivelCurso.java:13:	AVANZADO("Avanzado");
+backend/src/main/java/com/rutaia/entidad/NivelExperiencia.java:11:	PRINCIPIANTE("Principiante"),
+backend/src/main/java/com/rutaia/entidad/NivelExperiencia.java:12:	INTERMEDIO("Intermedio"),
+backend/src/main/java/com/rutaia/entidad/NivelExperiencia.java:13:	AVANZADO("Avanzado");
+JSON: nivel del curso 1 = "Básico" · nivelExperiencia del estudiante 1 = "Principiante" · estado de la consulta 2 = "Sin resultados"
+$ curl -s -o /dev/null -w "%{http_code}" "http://localhost:8080/api/cursos?nivel=basico"   (valor fuera de C5)
+400
+
+######## C7 — docs/openapi.json frente a GET /v3/api-docs
+docs/openapi.json idéntico a /v3/api-docs: true
+openapi 3.1.0 · servidores: [{"url":"http://localhost:8080","description":"Local"}]
+
+Operaciones:
+  GET    /api/admin/cursos/{id}                     op=consultarCursoAdmin tags=Administración de cursos params=[path:id*] cuerpo= resp=200:CursoAdmin 400:Error 404:Error 500:Error | Consultar un curso por id (E-08)
+  PUT    /api/admin/cursos/{id}                     op=actualizarCurso tags=Administración de cursos params=[path:id*] cuerpo=CursoRequest resp=200:CursoAdmin 400:Error 404:Error 500:Error | Actualizar un curso (E-09)
+  POST   /api/recomendaciones/{id}/calificacion     op=calificarRecomendacion tags=Calificaciones params=[path:id*] cuerpo=CalificacionRequest resp=201:Calificacion 400:Error 404:Error 409:Error 500:Error | Calificar una recomendación (E-13)
+  GET    /api/estudiantes                           op=listarEstudiantes tags=Estudiantes params=[] cuerpo= resp=200:[Estudiante] 500:Error | Listar estudiantes (E-02)
+  POST   /api/estudiantes                           op=registrarEstudiante tags=Estudiantes params=[] cuerpo=EstudianteRequest resp=201:Estudiante 400:Error 409:Error 500:Error | Registrar un estudiante (E-01)
+  POST   /api/consultas                             op=registrarConsulta tags=Consultas params=[] cuerpo=ConsultaRequest resp=201:ConsultaResultado 400:Error 404:Error 500:Error | Enviar una consulta y obtener la recomendación (E-11)
+  GET    /api/admin/cursos                          op=listarCursosAdmin tags=Administración de cursos params=[] cuerpo= resp=200:[CursoAdmin] 500:Error | Listar todos los cursos (E-07)
+  POST   /api/admin/cursos                          op=registrarCurso tags=Administración de cursos params=[] cuerpo=CursoRequest resp=201:CursoAdmin 400:Error 500:Error | Registrar un curso (E-06)
+  PATCH  /api/admin/cursos/{id}/desactivar          op=desactivarCurso tags=Administración de cursos params=[path:id*] cuerpo= resp=200:CursoAdmin 400:Error 404:Error 500:Error | Desactivar un curso (E-10)
+  GET    /api/estudiantes/{id}                      op=consultarEstudiante tags=Estudiantes params=[path:id*] cuerpo= resp=200:Estudiante 400:Error 404:Error 500:Error | Consultar un estudiante por id (E-03)
+  GET    /api/estudiantes/{id}/historial            op=consultarHistorial tags=Historial y detalle params=[path:id*] cuerpo= resp=200:[HistorialItem] 400:Error 404:Error 500:Error | Consultar el historial de un estudiante (E-04)
+  GET    /api/estadisticas                          op=consultarEstadisticas tags=Estadísticas params=[] cuerpo= resp=200:Estadisticas 500:Error | Consultar las estadísticas básicas (E-14)
+  GET    /api/cursos                                op=listarCatalogo tags=Catálogo de cursos params=[query:categoria,query:nivel] cuerpo= resp=200:[CursoCatalogo] 400:Error 500:Error | Listar el catálogo de cursos activos (E-05)
+  GET    /api/consultas/{id}                        op=consultarDetalleConsulta tags=Historial y detalle params=[path:id*] cuerpo= resp=200:ConsultaDetalle 400:Error 404:Error 500:Error | Ver el detalle completo de una consulta (E-12)
+Total: 14 operaciones
+
+Esquemas:
+  CursoRequest: nombre:string, descripcion:string, categoria:string, nivel:string{Básico|Intermedio|Avanzado}, duracionHoras:integer(int32)  req=categoria,descripcion,duracionHoras,nivel,nombre
+  CursoAdmin: id:integer(int64), nombre:string, descripcion:string, categoria:string, nivel:string{Básico|Intermedio|Avanzado}, duracionHoras:integer(int32), activo:boolean
+  DetalleError: campo:string, mensaje:string
+  Error: status:integer(int32), error:string, mensaje:string, ruta:string, fecha:string, detalles:[DetalleError]
+  CalificacionRequest: puntuacion:integer(int32), comentario:string,null  req=puntuacion
+  Calificacion: recomendacionId:integer(int64), puntuacion:integer(int32), comentario:string,null, fecha:string
+  EstudianteRequest: nombreCompleto:string, correo:string(email), nivelExperiencia:string{Principiante|Intermedio|Avanzado}, areaInteres:string  req=areaInteres,correo,nivelExperiencia,nombreCompleto
+  Estudiante: id:integer(int64), nombreCompleto:string, correo:string, nivelExperiencia:string{Principiante|Intermedio|Avanzado}, areaInteres:string, fechaRegistro:string
+  ConsultaRequest: estudianteId:integer(int64), pregunta:string  req=estudianteId,pregunta
+  ConsultaResultado: consultaId:integer(int64), estudianteId:integer(int64), pregunta:string, fecha:string, estado:string{Pendiente|Respondida|Sin resultados|Error}, respuesta:string,null, mensaje:string,null, recomendacionId:integer,null(int64), fuentes:[Fuente]
+  Fuente: cursoId:integer(int64), nombre:string, descripcion:string, categoria:string, nivel:string{Básico|Intermedio|Avanzado}, duracionHoras:integer(int32), similitud:number(double)
+  CursoRecomendado: cursoId:integer(int64), nombre:string
+  HistorialItem: consultaId:integer(int64), fecha:string, pregunta:string, estado:string{Pendiente|Respondida|Sin resultados|Error}, resumen:string, cursosRecomendados:[CursoRecomendado]
+  CursoMasRecomendado: cursoId:integer(int64), nombre:string, vecesRecomendado:integer(int64)
+  Estadisticas: totalConsultas:integer(int64), consultasRespondidas:integer(int64), consultasSinResultados:integer(int64), promedioCalificaciones:number,null(double), cursoMasRecomendado:null
+  CursoCatalogo: id:integer(int64), nombre:string, descripcion:string, categoria:string, nivel:string{Básico|Intermedio|Avanzado}, duracionHoras:integer(int32)
+  CalificacionDetalle: puntuacion:integer(int32), comentario:string,null, fecha:string
+  ConsultaDetalle: consultaId:integer(int64), estudianteId:integer(int64), pregunta:string, fecha:string, estado:string{Pendiente|Respondida|Sin resultados|Error}, respuesta:string,null, mensaje:string,null, recomendacionId:integer,null(int64), fuentes:[Fuente], calificacion:null
+
+######## C8 — flujos publicados, «Configuración» y orden de W-1
+$ docker compose exec n8n n8n list:workflow --active=true
+RutaIAIndexacion|RutaIA - Indexación de cursos
+RutaIACalibracion|RutaIA - Calibración de umbral
+RutaIAConsultaRAG|RutaIA - Consulta RAG
+$ comparación de la versión publicada con n8n/*.json
+RutaIAIndexacion: nodos, conexiones y ajustes idénticos · versionId repo=790c7b42-03a8-421e-9447-dafe1648d52a publicado=790c7b42-03a8-421e-9447-dafe1648d52a · activeVersionId repo=790c7b42-03a8-421e-9447-dafe1648d52a publicado=790c7b42-03a8-421e-9447-dafe1648d52a · active=true · ¿bloque shared en el export? true
+RutaIACalibracion: nodos, conexiones y ajustes idénticos · versionId repo=5fcac003-52ba-48a1-9359-c3a425346c89 publicado=5fcac003-52ba-48a1-9359-c3a425346c89 · activeVersionId repo=5fcac003-52ba-48a1-9359-c3a425346c89 publicado=5fcac003-52ba-48a1-9359-c3a425346c89 · active=true · ¿bloque shared en el export? true
+RutaIAConsultaRAG: nodos, conexiones y ajustes idénticos · versionId repo=d8a5f792-42fc-462f-a3e9-915d7fa1ccf7 publicado=d8a5f792-42fc-462f-a3e9-915d7fa1ccf7 · activeVersionId repo=d8a5f792-42fc-462f-a3e9-915d7fa1ccf7 publicado=d8a5f792-42fc-462f-a3e9-915d7fa1ccf7 · active=true · ¿bloque shared en el export? true
+$ última línea de docs/calibracion-umbral.md
+UMBRAL_SIMILITUD = 0.34
+(arreglo de 1 flujo/s)
+
+######## rutaia-indexacion-cursos.json  id=RutaIAIndexacion name=«RutaIA - Indexación de cursos» active=true versionId=790c7b42-03a8-421e-9447-dafe1648d52a
+Configuración (n8n-nodes-base.set v3.4):
+  coleccion = "rutaia_cursos" (string)
+  modeloEmbeddings = "nvidia/nemotron-3-embed-1b:free" (string)
+  dimensionVector = 2048 (number)
+  modeloLlm = "google/gemma-4-31b-it" (string)
+  qdrantUrl = "http://qdrant:6333" (string)
+  apiBaseUrl = "http://host.docker.internal:8080/api" (string)
+  openRouterUrl = "https://openrouter.ai/api/v1" (string)
+Nodos:
+  - Ejecutar manualmente (manualTrigger)
+  - Webhook (webhook) [POST /webhook/rutaia-indexar-cursos] responseMode=responseNode
+  - Configuración (set)
+  - Leer cursos (httpRequest) [GET ={{ $json.apiBaseUrl }}/admin/cursos] auth=-/- cred=null
+  - Validar cursos (code)
+  - ¿Existe la colección? (httpRequest) [GET ={{ $('Configuración').first().json.qdrantUrl }}/collections/{{ $('Configuración').first().json.coleccion }}/exists] auth=-/- cred=null
+  - Decidir colección (code)
+  - ¿Ya existe? (if)
+  - Leer configuración (httpRequest) [GET ={{ $('Configuración').first().json.qdrantUrl }}/collections/{{ $('Configuración').first().json.coleccion }}] auth=-/- cred=null
+  - Crear colección (httpRequest) [PUT ={{ $('Configuración').first().json.qdrantUrl }}/collections/{{ $('Configuración').first().json.coleccion }}] auth=-/- cred=null
+  - Comprobar colección (code)
+  - Crear índice activo (httpRequest) [PUT ={{ $('Configuración').first().json.qdrantUrl }}/collections/{{ $('Configuración').first().json.coleccion }}/index?wait=true] auth=-/- cred=null
+  - Preparar textos (code)
+  - Generar embeddings (httpRequest) [POST ={{ $('Configuración').first().json.openRouterUrl }}/embeddings] auth=genericCredentialType/httpHeaderAuth cred={"httpHeaderAuth":{"id":"zLvfa0tPU6IKdFZW","name":"RutaIA OpenRouter"}} timeout=120000
+  - Validar embeddings (code)
+  - Guardar puntos (httpRequest) [PUT ={{ $('Configuración').first().json.qdrantUrl }}/collections/{{ $('Configuración').first().json.coleccion }}/points?wait=true] auth=-/- cred=null timeout=120000
+  - Contar puntos (httpRequest) [GET ={{ $('Configuración').first().json.qdrantUrl }}/collections/{{ $('Configuración').first().json.coleccion }}] auth=-/- cred=null
+  - Armar respuesta (code)
+  - Responder (respondToWebhook)
+  - Armar error (code)
+  - Responder error (respondToWebhook)
+Conexiones:
+  Ejecutar manualmente: 0→[Configuración]
+  Webhook: 0→[Configuración]
+  Configuración: 0→[Leer cursos]
+  Leer cursos: 0→[Validar cursos] 1→[Armar error]
+  Validar cursos: 0→[¿Existe la colección?] 1→[Armar error]
+  ¿Existe la colección?: 0→[Decidir colección] 1→[Armar error]
+  Decidir colección: 0→[¿Ya existe?] 1→[Armar error]
+  ¿Ya existe?: 0→[Leer configuración] 1→[Crear colección]
+  Leer configuración: 0→[Comprobar colección] 1→[Armar error]
+  Crear colección: 0→[Comprobar colección] 1→[Armar error]
+  Comprobar colección: 0→[Crear índice activo] 1→[Armar error]
+  Crear índice activo: 0→[Preparar textos] 1→[Armar error]
+  Preparar textos: 0→[Generar embeddings] 1→[Armar error]
+  Generar embeddings: 0→[Validar embeddings] 1→[Armar error]
+  Validar embeddings: 0→[Guardar puntos] 1→[Armar error]
+  Guardar puntos: 0→[Contar puntos] 1→[Armar error]
+  Contar puntos: 0→[Armar respuesta] 1→[Armar error]
+  Armar respuesta: 0→[Responder] 1→[Armar error]
+  Armar error: 0→[Responder error]
+¿contiene sk-or-? false | ¿Bearer con valor? false | ¿shared/correo? false
+(arreglo de 1 flujo/s)
+
+######## rutaia-calibracion-umbral.json  id=RutaIACalibracion name=«RutaIA - Calibración de umbral» active=true versionId=5fcac003-52ba-48a1-9359-c3a425346c89
+Configuración (n8n-nodes-base.set v3.4):
+  coleccion = "rutaia_cursos" (string)
+  modeloEmbeddings = "nvidia/nemotron-3-embed-1b:free" (string)
+  dimensionVector = 2048 (number)
+  modeloLlm = "google/gemma-4-31b-it" (string)
+  qdrantUrl = "http://qdrant:6333" (string)
+  apiBaseUrl = "http://host.docker.internal:8080/api" (string)
+  openRouterUrl = "https://openrouter.ai/api/v1" (string)
+Nodos:
+  - Webhook (webhook) [POST /webhook/rutaia-calibrar-umbral] responseMode=responseNode
+  - Configuración (set)
+  - Validar preguntas (code)
+  - Leer colección (httpRequest) [GET ={{ $('Configuración').first().json.qdrantUrl }}/collections/{{ $('Configuración').first().json.coleccion }}] auth=-/- cred=null
+  - Comprobar colección (code)
+  - Generar embeddings (httpRequest) [POST ={{ $('Configuración').first().json.openRouterUrl }}/embeddings] auth=genericCredentialType/httpHeaderAuth cred={"httpHeaderAuth":{"id":"zLvfa0tPU6IKdFZW","name":"RutaIA OpenRouter"}} timeout=120000
+  - Validar embeddings (code)
+  - Buscar en Qdrant (httpRequest) [POST ={{ $('Configuración').first().json.qdrantUrl }}/collections/{{ $('Configuración').first().json.coleccion }}/points/query] auth=-/- cred=null
+  - Armar respuesta (code)
+  - Responder (respondToWebhook)
+  - Armar error (code)
+  - Responder error (respondToWebhook)
+Conexiones:
+  Webhook: 0→[Configuración]
+  Configuración: 0→[Validar preguntas]
+  Validar preguntas: 0→[Leer colección] 1→[Armar error]
+  Leer colección: 0→[Comprobar colección] 1→[Armar error]
+  Comprobar colección: 0→[Generar embeddings] 1→[Armar error]
+  Generar embeddings: 0→[Validar embeddings] 1→[Armar error]
+  Validar embeddings: 0→[Buscar en Qdrant] 1→[Armar error]
+  Buscar en Qdrant: 0→[Armar respuesta] 1→[Armar error]
+  Armar respuesta: 0→[Responder] 1→[Armar error]
+  Armar error: 0→[Responder error]
+¿contiene sk-or-? false | ¿Bearer con valor? false | ¿shared/correo? false
+(arreglo de 1 flujo/s)
+
+######## rutaia-consulta-rag.json  id=RutaIAConsultaRAG name=«RutaIA - Consulta RAG» active=true versionId=d8a5f792-42fc-462f-a3e9-915d7fa1ccf7
+Configuración (n8n-nodes-base.set v3.4):
+  coleccion = "rutaia_cursos" (string)
+  modeloEmbeddings = "nvidia/nemotron-3-embed-1b:free" (string)
+  dimensionVector = 2048 (number)
+  modeloLlm = "google/gemma-4-31b-it" (string)
+  umbralSimilitud = 0.34 (number)
+  limiteResultados = 5 (number)
+  qdrantUrl = "http://qdrant:6333" (string)
+  apiBaseUrl = "http://host.docker.internal:8080/api" (string)
+  openRouterUrl = "https://openrouter.ai/api/v1" (string)
+Nodos:
+  - Webhook (webhook) [POST /webhook/rutaia-consulta-rag] responseMode=responseNode
+  - Configuración (set)
+  - Validar entrada (code)
+  - Cursos activos (httpRequest) [GET ={{ $('Configuración').first().json.apiBaseUrl }}/cursos] auth=-/- cred=null timeout=30000
+  - Embedding de la pregunta (httpRequest) [POST ={{ $('Configuración').first().json.openRouterUrl }}/embeddings] auth=genericCredentialType/httpHeaderAuth cred={"httpHeaderAuth":{"id":"zLvfa0tPU6IKdFZW","name":"RutaIA OpenRouter"}} timeout=30000
+  - Validar vector (code)
+  - Buscar en Qdrant (httpRequest) [POST ={{ $('Configuración').first().json.qdrantUrl }}/collections/{{ $('Configuración').first().json.coleccion }}/points/query] auth=-/- cred=null timeout=30000
+  - Filtrar fuentes (code)
+  - ¿Hay fuentes? (if)
+  - Construir mensaje (code)
+  - Consultar LLM (httpRequest) [POST ={{ $('Configuración').first().json.openRouterUrl }}/chat/completions] auth=genericCredentialType/httpHeaderAuth cred={"httpHeaderAuth":{"id":"zLvfa0tPU6IKdFZW","name":"RutaIA OpenRouter"}} timeout=60000
+  - Normalizar salida (code)
+  - Validar salida (code)
+  - Responder Respondida (respondToWebhook)
+  - Responder Sin resultados (respondToWebhook)
+  - Armar error 400 (code)
+  - Responder 400 (respondToWebhook)
+  - Armar error 502 (code)
+  - Responder 502 (respondToWebhook)
+Conexiones:
+  Webhook: 0→[Configuración]
+  Configuración: 0→[Validar entrada]
+  Validar entrada: 0→[Cursos activos] 1→[Armar error 400]
+  Cursos activos: 0→[Embedding de la pregunta] 1→[Armar error 502]
+  Embedding de la pregunta: 0→[Validar vector] 1→[Armar error 502]
+  Validar vector: 0→[Buscar en Qdrant] 1→[Armar error 502]
+  Buscar en Qdrant: 0→[Filtrar fuentes] 1→[Armar error 502]
+  Filtrar fuentes: 0→[¿Hay fuentes?] 1→[Armar error 502]
+  ¿Hay fuentes?: 0→[Construir mensaje] 1→[Responder Sin resultados]
+  Construir mensaje: 0→[Consultar LLM] 1→[Armar error 502]
+  Consultar LLM: 0→[Normalizar salida] 1→[Armar error 502]
+  Normalizar salida: 0→[Validar salida] 1→[Armar error 502]
+  Validar salida: 0→[Responder Respondida] 1→[Armar error 502]
+  Armar error 400: 0→[Responder 400]
+  Armar error 502: 0→[Responder 502]
+¿contiene sk-or-? false | ¿Bearer con valor? false | ¿shared/correo? false
+
+######## C9 — Qdrant
+$ curl -s http://127.0.0.1:6333/collections/rutaia_cursos   (resumen)
+{"status":"green","points_count":30,"vectors":{"size":2048,"distance":"Cosine"},"payload_schema":{"activo":{"data_type":"bool","points":30}}}
+cursos en PostgreSQL: 30
+puntos: 30 · claves de payload: activo,categoria,cursoId,descripcion,duracionHoras,nivel,nombre · id = cursoId en todos: true · inactivos: 29,30
+
+######## C10 — modelos e input_type en los tres flujos
+--- n8n/rutaia-calibracion-umbral.json
+      1 input_type: 'query'
+"value": "nvidia/nemotron-3-embed-1b:free"
+"value": "google/gemma-4-31b-it"
+--- n8n/rutaia-consulta-rag.json
+      1 input_type: 'query'
+      1 max_tokens: 700
+      1 role: 'user'
+      1 temperature: 0.2
+"value": "nvidia/nemotron-3-embed-1b:free"
+"value": "google/gemma-4-31b-it"
+--- n8n/rutaia-indexacion-cursos.json
+      1 input_type: 'passage'
+"value": "nvidia/nemotron-3-embed-1b:free"
+"value": "google/gemma-4-31b-it"
+
+######## C11 — variables de entorno (la contraseña no se imprime)
+$ cat .env.example
+# Copia este archivo como .env (en la misma carpeta raíz) y escribe tu propia contraseña.
+# El .env no se versiona. Valores sin comillas, sin espacios y sin barras invertidas.
+RUTAIA_DB_USER=rutaia_app
+RUTAIA_DB_PASSWORD=
+RUTAIA_DB_URL=jdbc:postgresql://127.0.0.1:5433/rutaia
+RUTAIA_N8N_WEBHOOK_URL=http://127.0.0.1:5678/webhook/rutaia-consulta-rag
+RUTAIA_N8N_TIMEOUT_SEGUNDOS=90
+RUTAIA_CORS_ORIGINS=http://localhost:5500,http://127.0.0.1:5500
+$ .env local (claves)
+RUTAIA_DB_USER=rutaia_app
+RUTAIA_DB_PASSWORD=<oculta>
+RUTAIA_DB_URL=jdbc:postgresql://127.0.0.1:5433/rutaia
+RUTAIA_CORS_ORIGINS=http://localhost:5500,http://127.0.0.1:5500
+$ grep spring.config.import backend/src/main/resources/application.properties
+4:spring.config.import=optional:file:../.env[.properties]
+
+######## C12 — Docker Compose
+$ docker compose ps
+NAME                IMAGE                            COMMAND                  SERVICE    CREATED        STATUS                  PORTS
+rutaia-n8n-1        docker.n8n.io/n8nio/n8n:2.45.7   "tini -- /docker-ent…"   n8n        24 hours ago   Up 39 minutes           127.0.0.1:5678->5678/tcp
+rutaia-postgres-1   postgres:17                      "docker-entrypoint.s…"   postgres   19 hours ago   Up 19 hours (healthy)   127.0.0.1:5433->5432/tcp
+rutaia-qdrant-1     qdrant/qdrant:v1.20.0            "./entrypoint.sh"        qdrant     24 hours ago   Up About an hour        127.0.0.1:6333->6333/tcp
+$ grep -n -E "image:|127.0.0.1:|host-gateway|name: rutaia|pg_isready" docker-compose.yml
+6:name: rutaia
+10:    image: postgres:17
+17:      - "127.0.0.1:5433:5432"
+22:      test: ["CMD-SHELL", "pg_isready -U ${RUTAIA_DB_USER} -d rutaia"]
+29:    image: qdrant/qdrant:v1.20.0
+32:      - "127.0.0.1:6333:6333"
+37:    image: docker.n8n.io/n8nio/n8n:2.45.7
+40:      - "127.0.0.1:5678:5678"
+45:      - "host.docker.internal:host-gateway"
+
+######## C6 — conexión y CORS
+$ docker compose up -d
+ Container rutaia-n8n-1 Running 
+ Container rutaia-postgres-1 Running 
+ Container rutaia-qdrant-1 Running 
+
+$ docker compose ps
+NAME                IMAGE                            COMMAND                  SERVICE    CREATED        STATUS                  PORTS
+rutaia-n8n-1        docker.n8n.io/n8nio/n8n:2.45.7   "tini -- /docker-ent…"   n8n        23 hours ago   Up 12 hours             127.0.0.1:5678->5678/tcp
+rutaia-postgres-1   postgres:17                      "docker-entrypoint.s…"   postgres   18 hours ago   Up 18 hours (healthy)   127.0.0.1:5433->5432/tcp
+rutaia-qdrant-1     qdrant/qdrant:v1.20.0            "./entrypoint.sh"        qdrant     23 hours ago   Up 16 hours             127.0.0.1:6333->6333/tcp
+
+$ curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/estudiantes   (backend)
+200
+$ curl -s http://localhost:5500/ | grep -o "<title>.*</title>"   (jwebserver)
+<title>RutaIA · Cuaderno de ruta académica</title>
+
+$ curl -s -i -X OPTIONS http://localhost:8080/api/consultas -H "Origin: http://localhost:5500" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: content-type"
+HTTP/1.1 200 
+Vary: Origin
+Vary: Access-Control-Request-Method
+Vary: Access-Control-Request-Headers
+Access-Control-Allow-Origin: http://localhost:5500
+Access-Control-Allow-Methods: GET,POST,PUT,PATCH,OPTIONS
+Access-Control-Allow-Headers: content-type
+Access-Control-Max-Age: 1800
+Allow: GET, HEAD, POST, PUT, DELETE, OPTIONS, PATCH
+Content-Length: 0
+
+
+$ curl -s -i -X OPTIONS http://localhost:8080/api/consultas -H "Origin: http://127.0.0.1:5500" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: content-type"
+HTTP/1.1 200 
+Vary: Origin
+Vary: Access-Control-Request-Method
+Vary: Access-Control-Request-Headers
+Access-Control-Allow-Origin: http://127.0.0.1:5500
+Access-Control-Allow-Methods: GET,POST,PUT,PATCH,OPTIONS
+Access-Control-Allow-Headers: content-type
+Access-Control-Max-Age: 1800
+Allow: GET, HEAD, POST, PUT, DELETE, OPTIONS, PATCH
+Content-Length: 0
+
+
+$ curl -s -i -X OPTIONS http://localhost:8080/api/consultas -H "Origin: http://otro.test" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: content-type"
+HTTP/1.1 403 
+Vary: Origin
+Vary: Access-Control-Request-Method
+Vary: Access-Control-Request-Headers
+Transfer-Encoding: chunked
+
+Invalid CORS request
+
+$ preflight con un método no permitido (DELETE) desde http://localhost:5500
+403
+$ GET real desde http://otro.test (sin cabecera Access-Control-Allow-Origin esperada)
+HTTP/1.1 403 
+
+######## Secretos (archivos versionados + archivos nuevos sin versionar, sin «Claude outputs/»; y git log -p)
+archivos prohibidos versionados (.env, node_modules, build, .gradle, .class): 0
+archivos prohibidos en el historial: 0
+claves reales sk-or-v1-<hex ≥ 32> en archivos: 0 · en git log -p: 0
+contraseña del .env (longitud 10, sin imprimirla) en archivos: 0 · en git log -p: 0
+«Bearer » seguido de un token (20 o más caracteres [A-Za-z0-9_.-]; una clave real tiene unos 73): 0 en archivos · 0 en git log -p (los demás «Bearer» son texto: «Bearer <clave>», «Bearer $OPENROUTER_API_KEY», «Bearer sk-or-v1-…» o comandos grep)
+líneas con «sk-or-» literal (todas marcadores sk-or-v1-… o comandos grep) en archivos: 25 · en git log -p: 16
+docs/entorno-local.md:167:a una vez). Empieza por `sk-or-v1-` y tiene
+docs/entorno-local.md:171:   - Value: `Bearer sk-or-v1-…` (la 
+docs/entorno-local.md:194:UTER_API_KEY.StartsWith('sk-or-v1-'))"   # 
+docs/entorno-local.md:213:0:9}"   # debe ser ~73 y sk-or-v1-
+docs/entorno-local.md:317:al crearla: empieza por `sk-or-v1-` y tiene
+docs/entorno-local.md:317:edencial de n8n (`Bearer sk-or-v1-…`). |
+docs/evidencias/etapa3-indexacion.txt:58:ep -ciE "@|outlook|gmail|sk-or-v1|bearer " 
+docs/evidencias/etapa4-calibracion.txt:63:ep -ciE "@|outlook|gmail|sk-or-v1|bearer " 
+docs/evidencias/etapa5-consulta-rag.txt:74:ep -ciE "@|outlook|gmail|sk-or-v1|bearer " 
+docs/evidencias/etapa5-consulta-rag.txt:171:ep -ciE "@|outlook|gmail|sk-or-v1|bearer " 
+docs/evidencias/integracion-verificacion.txt:275:¿contiene sk-or-? false | ¿
+docs/evidencias/integracion-verificacion.txt:311:¿contiene sk-or-? false | ¿
+docs/evidencias/integracion-verificacion.txt:361:¿contiene sk-or-? false | ¿
+docs/evidencias/integracion-verificacion.txt:481:claves reales sk-or-v1-<hex ≥ 
+docs/evidencias/integracion-verificacion.txt:483:UTER_API_KEY», «Bearer sk-or-v1-…» o c
+docs/evidencias/integracion-verificacion.txt:484:líneas con «sk-or-» literal (
+docs/evidencias/integracion-verificacion.txt:484:todas marcadores sk-or-v1-… o com
+docs/informe-integracion.md:154:- Claves reales (`sk-or-v1-` seguido
+docs/informe-integracion.md:156:Y` y el marcador `Bearer sk-or-v1-…`.
+docs/informe-integracion.md:157:a búsqueda literal de «sk-or-» sí encue
+docs/informe-integracion.md:157:ro todas son marcadores `sk-or-v1-…` o co
+docs/informe-integracion.md:352:a búsqueda literal de «sk-or-» no da 0: 
+docs/informe-integracion.md:352:ación tiene marcadores `sk-or-v1-…` y co
+docs/n8n.md:92:a claves: `git grep -nE "sk-or-v1|Bearer " 
+docs/pruebas-funcionales.md:20:vo versionable contiene `sk-or-v1-…` ni u
+docs/pruebas-funcionales.md:93:raseña del `.env` y de `sk-or-v1-` sobre l
+docs/pruebas-funcionales.md:93:contraseña no aparece; `sk-or-v1-` solo co
+docs/pruebas-funcionales.md:116:-ciE "@\|outlook\|gmail\|sk-or-v1\|bearer "
+docs/pruebas-funcionales.md:135:-ciE "@\|outlook\|gmail\|sk-or-v1\|bearer "
+docs/pruebas-funcionales.md:158:-ciE "@\|outlook\|gmail\|sk-or-v1\|bearer "
+docs/pruebas-funcionales.md:347:ntraseña. Los únicos «sk-or-» son marca
+docs/pruebas-funcionales.md:347:dores `sk-or-v1-…` de l
+
+######## Frontend — referencias prohibidas
+5678 / 6333 / openrouter / webhook en frontend/: 0
+// URL base de la API de Spring Boot: la única dirección a la que llama el frontend.
+export const API_BASE_URL = "http://localhost:8080/api";

@@ -1,6 +1,6 @@
 [
   {
-    "updatedAt": "2026-11-03T04:15:54.000Z",
+    "updatedAt": "2026-11-03T17:01:21.000Z",
     "createdAt": "2026-11-02T23:24:59.602Z",
     "id": "RutaIAIndexacion",
     "name": "RutaIA - Indexación de cursos",
@@ -70,7 +70,7 @@
               {
                 "id": "a3c0e0b0-0000-4000-8000-000000000007",
                 "name": "modeloLlm",
-                "value": "google/gemma-4-26b-a4b-it:free",
+                "value": "google/gemma-4-31b-it",
                 "type": "string"
               },
               {
@@ -789,9 +789,9 @@
     "meta": null,
     "nodeGroups": [],
     "pinData": {},
-    "versionId": "feb292f9-7dad-4c7b-8876-751ef3a942cb",
-    "activeVersionId": "feb292f9-7dad-4c7b-8876-751ef3a942cb",
-    "versionCounter": 2,
+    "versionId": "790c7b42-03a8-421e-9447-dafe1648d52a",
+    "activeVersionId": "790c7b42-03a8-421e-9447-dafe1648d52a",
+    "versionCounter": 4,
     "triggerCount": 1,
     "sourceWorkflowId": null,
     "tags": [],

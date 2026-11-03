@@ -1,0 +1,1012 @@
+RutaIA — Etapa de integración: evidencia de las 10 consultas de prueba, calificaciones, estadísticas y robustez
+Fecha: 2026-11-03 (hora local UTC−6; n8n registra en UTC). Las consultas 1–8 se enviaron desde el frontend (http://localhost:5500,
+navegador integrado); la 9, la 10 y las de robustez, por la API con curl. La respuesta de E-11 se tomó del panel de red
+(todas 201) y se muestra con GET /api/consultas/{id} (E-12), que devuelve los mismos campos más «calificacion»; se comparó
+campo por campo para la consulta 14. Las descripciones de las fuentes se recortan con «…» para leer el archivo.
+Las ejecuciones de n8n se leen de /home/node/.n8n/database.sqlite (nodos ejecutados en orden).
+
+######## ESTADO LIMPIO (01_esquema.sql + 02_datos_semilla.sql + W-2)
+$ docker compose exec postgres psql -U rutaia_app -d rutaia -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/01_esquema.sql
+SET
+DROP TABLE
+DROP TABLE
+DROP TABLE
+DROP TABLE
+DROP TABLE
+DROP TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE INDEX
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE TABLE
+CREATE TABLE
+CREATE INDEX
+CREATE TABLE
+exit=0
+$ docker compose exec postgres psql -U rutaia_app -d rutaia -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/02_datos_semilla.sql
+SET
+INSERT 0 10
+INSERT 0 30
+exit=0
+$ conteos después de la semilla
+ estudiantes | cursos | activos | categorias | niveles | consultas | recomendaciones | calificaciones 
+-------------+--------+---------+------------+---------+-----------+-----------------+----------------
+          10 |     30 |      28 |          7 |       3 |         0 |               0 |              0
+(1 row)
+
+$ curl -s -i -X POST http://127.0.0.1:5678/webhook/rutaia-indexar-cursos     [solicitud 1 a OpenRouter]
+HTTP/1.1 200 OK
+Content-Security-Policy: sandbox allow-downloads allow-forms allow-modals allow-orientation-lock allow-pointer-lock allow-popups allow-popups-to-escape-sandbox allow-presentation allow-scripts allow-top-navigation-by-user-activation allow-top-navigation-to-custom-protocols
+Content-Type: application/json; charset=utf-8
+Content-Length: 136
+ETag: W/"88-QJX1oniYVCYNno1A99sjW/zUDdw"
+
+{"coleccion":"rutaia_cursos","coleccionCreada":false,"cursosLeidos":30,"puntosGuardados":30,"activos":28,"inactivos":2,"totalPuntos":30}
+
+$ curl -s http://127.0.0.1:6333/collections/rutaia_cursos   (resumen)
+{"status":"green","points_count":30,"vectors":{"size":2048,"distance":"Cosine"},"payload_schema":{"activo":{"data_type":"bool","points":30}}}
+$ ejecución de n8n
+57 | RutaIAIndexacion | success | webhook | 2026-11-03 16:25:35.360 | 2026-11-03 16:25:38.223
+
+######## CAMBIO DE MODELO DEL LLM (decisión del autor; ver docs/informe-integracion.md)
+Ejecuciones #58 y #61 (google/gemma-4-26b-a4b-it:free): OpenRouter 502 «Provider returned error»; metadata: 429 «rate-limited upstream»
+en la capacidad compartida y después Google AI Studio con la clave propia (is_byok: true) → 500 «Internal error encountered».
+Ejecución #62 (google/gemma-4-31b-it:free): 429 «rate-limited upstream» y después Google AI Studio → 504 «The operation was aborted».
+Desde la ejecución #63 el LLM es la variante de pago google/gemma-4-31b-it (crédito de OpenRouter).
+$ docker compose exec n8n n8n import:workflow --input=/home/node/flujos/rutaia-indexacion-cursos.json
+Deactivating workflow "RutaIA - Indexación de cursos".
+Successfully imported 1 workflow.
+$ docker compose exec n8n n8n publish:workflow --id=RutaIAIndexacion
+Note: Changes will not take effect if n8n is running.
+Please restart n8n for changes to take effect if n8n is currently running.
+$ docker compose exec n8n n8n import:workflow --input=/home/node/flujos/rutaia-calibracion-umbral.json
+Deactivating workflow "RutaIA - Calibración de umbral".
+Successfully imported 1 workflow.
+$ docker compose exec n8n n8n publish:workflow --id=RutaIACalibracion
+Note: Changes will not take effect if n8n is running.
+Please restart n8n for changes to take effect if n8n is currently running.
+$ docker compose exec n8n n8n import:workflow --input=/home/node/flujos/rutaia-consulta-rag.json
+Deactivating workflow "RutaIA - Consulta RAG".
+Successfully imported 1 workflow.
+$ docker compose exec n8n n8n publish:workflow --id=RutaIAConsultaRAG
+Note: Changes will not take effect if n8n is running.
+Please restart n8n for changes to take effect if n8n is currently running.
+$ docker compose restart n8n
+ Container rutaia-n8n-1 Restarting 
+ Container rutaia-n8n-1 Started 
+readiness=200
+$ docker compose exec n8n n8n list:workflow --active=true
+RutaIAIndexacion|RutaIA - Indexación de cursos
+RutaIACalibracion|RutaIA - Calibración de umbral
+RutaIAConsultaRAG|RutaIA - Consulta RAG
+$ docker compose exec n8n n8n export:workflow --id=RutaIAIndexacion --published --output=/home/node/flujos/rutaia-indexacion-cursos.json --pretty
+Successfully exported 1 workflow.
+$ docker compose exec n8n n8n export:workflow --id=RutaIACalibracion --published --output=/home/node/flujos/rutaia-calibracion-umbral.json --pretty
+Successfully exported 1 workflow.
+$ docker compose exec n8n n8n export:workflow --id=RutaIAConsultaRAG --published --output=/home/node/flujos/rutaia-consulta-rag.json --pretty
+Successfully exported 1 workflow.
+
+=== Cambio a la variante de pago google/gemma-4-31b-it (decisión del autor) ===
+$ docker compose exec n8n n8n import:workflow --input=/home/node/flujos/rutaia-indexacion-cursos.json
+Successfully imported 1 workflow.
+$ docker compose exec n8n n8n publish:workflow --id=RutaIAIndexacion
+Please restart n8n for changes to take effect if n8n is currently running.
+$ docker compose exec n8n n8n import:workflow --input=/home/node/flujos/rutaia-calibracion-umbral.json
+Successfully imported 1 workflow.
+$ docker compose exec n8n n8n publish:workflow --id=RutaIACalibracion
+Please restart n8n for changes to take effect if n8n is currently running.
+$ docker compose exec n8n n8n import:workflow --input=/home/node/flujos/rutaia-consulta-rag.json
+Successfully imported 1 workflow.
+$ docker compose exec n8n n8n publish:workflow --id=RutaIAConsultaRAG
+Please restart n8n for changes to take effect if n8n is currently running.
+$ docker compose restart n8n
+ Container rutaia-n8n-1 Restarting 
+ Container rutaia-n8n-1 Started 
+readiness=200
+$ docker compose exec n8n n8n list:workflow --active=true
+RutaIAIndexacion|RutaIA - Indexación de cursos
+RutaIACalibracion|RutaIA - Calibración de umbral
+RutaIAConsultaRAG|RutaIA - Consulta RAG
+$ docker compose exec n8n n8n export:workflow --id=RutaIAIndexacion --published --output=/home/node/flujos/rutaia-indexacion-cursos.json --pretty
+Successfully exported 1 workflow.
+$ docker compose exec n8n n8n export:workflow --id=RutaIACalibracion --published --output=/home/node/flujos/rutaia-calibracion-umbral.json --pretty
+Successfully exported 1 workflow.
+$ docker compose exec n8n n8n export:workflow --id=RutaIAConsultaRAG --published --output=/home/node/flujos/rutaia-consulta-rag.json --pretty
+Successfully exported 1 workflow.
+
+==================================================================================
+CP 01 — «Quiero aprender a crear páginas web.» · Valeria Gómez Rojas (id 1, Principiante, Desarrollo web)
+==================================================================================
+Petición (frontend, POST /api/consultas): {"estudianteId":1,"pregunta":"Quiero aprender a crear páginas web."}
+Intentos fallidos por el proveedor del LLM (no son fallas de RutaIA): consultas 1, 5 y 6 → Error. Intento válido: consulta 7.
+ consulta | est |        fecha        |   estado   |                                                                          detalle_error                                                                           | rec |               fuentes               
+----------+-----+---------------------+------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----+-------------------------------------
+        1 |   1 | 2026-11-03 10:26:30 | Error      | n8n respondió HTTP 502: OpenRouter (/chat/completions) respondió HTTP 502: Provider returned error · {   "error": {     "code": 500,     "message": "Internal er |     | 
+        5 |   1 | 2026-11-03 10:29:41 | Error      | n8n respondió HTTP 502: OpenRouter (/chat/completions) respondió HTTP 502: Provider returned error · {   "error": {     "code": 500,     "message": "Internal er |     | 
+        6 |   1 | 2026-11-03 10:34:58 | Error      | n8n respondió HTTP 502: OpenRouter (/chat/completions) respondió HTTP 504: The operation was aborted                                                             |     | 
+        7 |   1 | 2026-11-03 11:07:02 | Respondida |                                                                                                                                                                  |   1 | 1:0.5930 2:0.3843 3:0.3750 4:0.3644
+(4 rows)
+
+#58 RutaIAConsultaRAG success 2026-11-03 16:26:30.875 → 2026-11-03 16:26:33.344
+   Webhook
+   Configuración
+   Validar entrada
+   Cursos activos → HTTP 200
+   Embedding de la pregunta → HTTP 200
+   Validar vector
+   Buscar en Qdrant → HTTP 200
+   Filtrar fuentes
+   ¿Hay fuentes?
+   Construir mensaje
+   Consultar LLM [salida 1]
+   Armar error 502
+   Responder 502 → {"consultaId":1,"pregunta":"Quiero aprender a crear páginas web.","estado":"Error","respuesta":null,"fuentes":"","error":"OpenRouter (/chat/completions) respondió HTTP 502: Provider returned error · {\n  \"error\": {\n    \"code\": 500,\n    \"message\": \"Internal error encountered.\",\n    \"status\": \"INTERNAL\"\n  }\n}\n"}
+#61 RutaIAConsultaRAG success 2026-11-03 16:29:41.457 → 2026-11-03 16:29:44.720
+   Webhook
+   Configuración
+   Validar entrada
+   Cursos activos → HTTP 200
+   Embedding de la pregunta → HTTP 200
+   Validar vector
+   Buscar en Qdrant → HTTP 200
+   Filtrar fuentes
+   ¿Hay fuentes?
+   Construir mensaje
+   Consultar LLM [salida 1]
+   Armar error 502
+   Responder 502 → {"consultaId":5,"pregunta":"Quiero aprender a crear páginas web.","estado":"Error","respuesta":null,"fuentes":"","error":"OpenRouter (/chat/completions) respondió HTTP 502: Provider returned error · {\n  \"error\": {\n    \"code\": 500,\n    \"message\": \"Internal error encountered.\",\n    \"status\": \"INTERNAL\"\n  }\n}\n"}
+#62 RutaIAConsultaRAG success 2026-11-03 16:34:58.508 → 2026-11-03 16:35:11.291
+   Webhook
+   Configuración
+   Validar entrada
+   Cursos activos → HTTP 200
+   Embedding de la pregunta → HTTP 200
+   Validar vector
+   Buscar en Qdrant → HTTP 200
+   Filtrar fuentes
+   ¿Hay fuentes?
+   Construir mensaje
+   Consultar LLM [salida 1]
+   Armar error 502
+   Responder 502 → {"consultaId":6,"pregunta":"Quiero aprender a crear páginas web.","estado":"Error","respuesta":null,"fuentes":"","error":"OpenRouter (/chat/completions) respondió HTTP 504: The operation was aborted"}
+#63 RutaIAConsultaRAG success 2026-11-03 17:07:02.875 → 2026-11-03 17:07:07.529
+   Webhook
+   Configuración
+   Validar entrada
+   Cursos activos → HTTP 200
+   Embedding de la pregunta → HTTP 200
+   Validar vector
+   Buscar en Qdrant → HTTP 200
+   Filtrar fuentes
+   ¿Hay fuentes?
+   Construir mensaje
+   Consultar LLM → HTTP 200
+   Normalizar salida
+   Validar salida
+   Responder Respondida → {"consultaId":7,"pregunta":"Quiero aprender a crear páginas web.","estado":"Respondida","respuesta":"Hola. Como orientador de RutaIA, te recomiendo la siguiente ruta de aprendizaje para iniciar en el desarrollo web, acorde a tu nivel princip…","fuentes":"1:0.593 2:0.3843 3:0.375 4:0.3644","error":null}
+Buscar en Qdrant → 1:0.5930(activo=true) 2:0.3843(activo=true) 3:0.3750(activo=true) 4:0.3644(activo=true)
+Filtrar fuentes  → 1:0.593 2:0.3843 3:0.375 4:0.3644
+¿Se llamó al LLM? true
+GET /api/consultas/7 → HTTP 200
+{
+ "consultaId": 7,
+ "estudianteId": 1,
+ "pregunta": "Quiero aprender a crear páginas web.",
+ "fecha": "2026-11-03T11:07:02",
+ "estado": "Respondida",
+ "respuesta": "Hola. Como orientador de RutaIA, te recomiendo la siguiente ruta de aprendizaje para iniciar en el desarrollo web, acorde a tu nivel principiante:\n\nPrimero, toma Fundamentos de HTML y CSS para páginas web. Es el punto de partida ideal ya que es de nivel Básico y te enseña a crear sitios desde cero sin experiencia previa.\n\nPosteriormente, te sugiero Diseño web responsive con Flexbox y Grid para que tus páginas se adapten a cualquier dispositivo. Luego, avanza con JavaScript y manipulación del DOM para añadir interactividad y comportamiento dinámico a tus proyectos.\n\nFinalmente, puedes tomar Seguridad de aplicaciones web con OWASP Top 10 para aprender a proteger tus desarrollos frente a ataques comunes.\n\nEsta secuencia te permite avanzar desde la estructura básica y el diseño, pasando por la programación, hasta llegar a la seguridad de tus aplicaciones.",
+ "mensaje": null,
+ "recomendacionId": 1,
+ "fuentes": [
+  {
+   "cursoId": 1,
+   "nombre": "Fundamentos de HTML y CSS para páginas web",
+   "descripcion": "Curso para quienes quieren aprender a crear páginas web desde cero sin…",
+   "categoria": "Desarrollo web",
+   "nivel": "Básico",
+   "duracionHoras": 40,
+   "similitud": 0.593
+  },
+  {
+   "cursoId": 2,
+   "nombre": "JavaScript y manipulación del DOM",
+   "descripcion": "Aprende a programar en JavaScript para dar interactividad y comportami…",
+   "categoria": "Desarrollo web",
+   "nivel": "Intermedio",
+   "duracionHoras": 50,
+   "similitud": 0.3843
+  },
+  {
+   "cursoId": 3,
+   "nombre": "Diseño web responsive con Flexbox y Grid",
+   "descripcion": "Aprende a crear páginas web que se vean bien en celulares, tabletas y …",
+   "categoria": "Desarrollo web",
+   "nivel": "Intermedio",
+   "duracionHoras": 30,
+   "similitud": 0.375
+  },
+  {
+   "cursoId": 4,
+   "nombre": "Seguridad de aplicaciones web con OWASP Top 10",
+   "descripcion": "Aprende a proteger aplicaciones web frente a los ataques más comunes u…",
+   "categoria": "Desarrollo web",
+   "nivel": "Intermedio",
+   "duracionHoras": 40,
+   "similitud": 0.3644
+  }
+ ],
+ "calificacion": {
+  "puntuacion": 5,
+  "comentario": "Ruta clara para empezar desde cero; me ayudó a ordenar los cursos.",
+  "fecha": "2026-11-03T11:12:15"
+ }
+}
+
+==================================================================================
+CP 02 — «Necesito aprender Java para trabajar con Spring Boot.» · Andrés Castillo Méndez (id 2, Intermedio)
+==================================================================================
+Petición (frontend, POST /api/consultas): {"estudianteId":2,"pregunta":"Necesito aprender Java para trabajar con Spring Boot."}
+ consulta | est |        fecha        |   estado   | detalle_error | rec |               fuentes               
+----------+-----+---------------------+------------+---------------+-----+-------------------------------------
+        8 |   2 | 2026-11-03 11:07:27 | Respondida |               |   2 | 5:0.6286 6:0.5746 7:0.5112 8:0.3974
+(1 row)
+
+#64 RutaIAConsultaRAG success 2026-11-03 17:07:27.420 → 2026-11-03 17:07:32.112
+   Webhook
+   Configuración
+   Validar entrada
+   Cursos activos → HTTP 200
+   Embedding de la pregunta → HTTP 200
+   Validar vector
+   Buscar en Qdrant → HTTP 200
+   Filtrar fuentes
+   ¿Hay fuentes?
+   Construir mensaje
+   Consultar LLM → HTTP 200
+   Normalizar salida
+   Validar salida
+   Responder Respondida → {"consultaId":8,"pregunta":"Necesito aprender Java para trabajar con Spring Boot.","estado":"Respondida","respuesta":"Hola. Para lograr tu objetivo de desarrollo backend con Java, te recomiendo seguir este orden de aprendizaje basado en nuestro catálogo:\n\nPr…","fuentes":"5:0.6286 6:0.5746 7:0.5112 8:0.3974","error":null}
+GET /api/consultas/8 → HTTP 200
+{
+ "consultaId": 8,
+ "estudianteId": 2,
+ "pregunta": "Necesito aprender Java para trabajar con Spring Boot.",
+ "fecha": "2026-11-03T11:07:27",
+ "estado": "Respondida",
+ "respuesta": "Hola. Para lograr tu objetivo de desarrollo backend con Java, te recomiendo seguir este orden de aprendizaje basado en nuestro catálogo:\n\nPrimero, toma Programación orientada a objetos con Java. Aunque es de nivel Básico, es la base indispensable para dominar la sintaxis y los pilares de la POO necesarios antes de entrar a Spring Boot.\n\nSegundo, realiza Desarrollo de APIs REST con Spring Boot. Este curso de nivel Intermedio te enseñará a construir servicios web profesionales, inyección de dependencias y arquitectura en capas.\n\nTercero, cursa Persistencia de datos con Spring Data JPA. También de nivel Intermedio, es fundamental para conectar tus aplicaciones a bases de datos relacionales y manejar el mapeo objeto relacional.\n\nFinalmente, te sugiero Autenticación y autorización segura con Spring Security. Al ser de nivel Avanzado, te permitirá proteger tus APIs mediante tokens JWT y OAuth 2.0, completando así tu perfil de desarrollador backend.\n\nEsta ruta te lleva desde los fundamentos hasta la seguridad avanzada en aplicaciones empresariales.",
+ "mensaje": null,
+ "recomendacionId": 2,
+ "fuentes": [
+  {
+   "cursoId": 5,
+   "nombre": "Programación orientada a objetos con Java",
+   "descripcion": "Curso para aprender Java desde cero y dominar la programación orientad…",
+   "categoria": "Programación",
+   "nivel": "Básico",
+   "duracionHoras": 60,
+   "similitud": 0.6286
+  },
+  {
+   "cursoId": 6,
+   "nombre": "Desarrollo de APIs REST con Spring Boot",
+   "descripcion": "Aprende a construir APIs REST profesionales en Java con Spring Boot, e…",
+   "categoria": "Programación",
+   "nivel": "Intermedio",
+   "duracionHoras": 50,
+   "similitud": 0.5746
+  },
+  {
+   "cursoId": 7,
+   "nombre": "Persistencia de datos con Spring Data JPA",
+   "descripcion": "Aprende a conectar aplicaciones Java con Spring Boot a bases de datos …",
+   "categoria": "Programación",
+   "nivel": "Intermedio",
+   "duracionHoras": 40,
+   "similitud": 0.5112
+  },
+  {
+   "cursoId": 8,
+   "nombre": "Autenticación y autorización segura con Spring Security",
+   "descripcion": "Aprende a proteger aplicaciones y APIs web implementando autenticación…",
+   "categoria": "Programación",
+   "nivel": "Avanzado",
+   "duracionHoras": 40,
+   "similitud": 0.3974
+  }
+ ],
+ "calificacion": {
+  "puntuacion": 4,
+  "comentario": "Buena ruta hacia Spring Boot; faltó indicar cuánto tiempo dedicar a cada curso.",
+  "fecha": "2026-11-03T11:12:35"
+ }
+}
+
+==================================================================================
+CP 03 — «Me interesa analizar datos y construir dashboards.» · Mateo Herrera Salinas (id 4, Principiante)
+==================================================================================
+Petición (frontend, POST /api/consultas): {"estudianteId":4,"pregunta":"Me interesa analizar datos y construir dashboards."}
+ consulta | est |        fecha        |   estado   | detalle_error | rec |                fuentes                 
+----------+-----+---------------------+------------+---------------+-----+----------------------------------------
+        9 |   4 | 2026-11-03 11:07:49 | Respondida |               |   3 | 21:0.5322 20:0.4445 9:0.4344 22:0.3856
+(1 row)
+
+#65 RutaIAConsultaRAG success 2026-11-03 17:07:49.504 → 2026-11-03 17:07:53.671
+   Webhook
+   Configuración
+   Validar entrada
+   Cursos activos → HTTP 200
+   Embedding de la pregunta → HTTP 200
+   Validar vector
+   Buscar en Qdrant → HTTP 200
+   Filtrar fuentes
+   ¿Hay fuentes?
+   Construir mensaje
+   Consultar LLM → HTTP 200
+   Normalizar salida
+   Validar salida
+   Responder Respondida → {"consultaId":9,"pregunta":"Me interesa analizar datos y construir dashboards.","estado":"Respondida","respuesta":"Hola. Para iniciar tu camino en el análisis de datos y la construcción de dashboards, te recomiendo la siguiente ruta de aprendizaje:\n\nPrime…","fuentes":"21:0.5322 20:0.4445 9:0.4344 22:0.3856","error":null}
+GET /api/consultas/9 → HTTP 200
+{
+ "consultaId": 9,
+ "estudianteId": 4,
+ "pregunta": "Me interesa analizar datos y construir dashboards.",
+ "fecha": "2026-11-03T11:07:49",
+ "estado": "Respondida",
+ "respuesta": "Hola. Para iniciar tu camino en el análisis de datos y la construcción de dashboards, te recomiendo la siguiente ruta de aprendizaje:\n\nPrimero, toma Estadística aplicada al análisis de datos y Consultas SQL para análisis de datos. Ambos son de nivel Básico y te darán los fundamentos matemáticos y la capacidad de extraer información de bases de datos, que es la base para cualquier reporte.\n\nDespués, puedes avanzar a Análisis de datos con Python y pandas para aprender a limpiar y transformar datos de forma programática.\n\nFinalmente, te sugiero Visualización de datos y dashboards con Power BI. Este curso de nivel Intermedio es el ideal para cumplir tu objetivo de construir tableros interactivos y reportes de inteligencia de negocios.\n\nEsta secuencia te permite evolucionar desde la obtención y comprensión de los datos hasta su presentación visual profesional.",
+ "mensaje": null,
+ "recomendacionId": 3,
+ "fuentes": [
+  {
+   "cursoId": 21,
+   "nombre": "Visualización de datos y dashboards con Power BI",
+   "descripcion": "Aprende a construir dashboards interactivos y reportes de inteligencia…",
+   "categoria": "Análisis de datos",
+   "nivel": "Intermedio",
+   "duracionHoras": 30,
+   "similitud": 0.5322
+  },
+  {
+   "cursoId": 20,
+   "nombre": "Análisis de datos con Python y pandas",
+   "descripcion": "Aprende a analizar datos con Python usando pandas, la librería más uti…",
+   "categoria": "Análisis de datos",
+   "nivel": "Intermedio",
+   "duracionHoras": 40,
+   "similitud": 0.4445
+  },
+  {
+   "cursoId": 9,
+   "nombre": "Consultas SQL para análisis de datos",
+   "descripcion": "Aprende SQL desde cero para consultar, filtrar y analizar datos almace…",
+   "categoria": "Bases de datos",
+   "nivel": "Básico",
+   "duracionHoras": 30,
+   "similitud": 0.4344
+  },
+  {
+   "cursoId": 22,
+   "nombre": "Estadística aplicada al análisis de datos",
+   "descripcion": "Aprende la estadística que necesitas para analizar datos e interpretar…",
+   "categoria": "Análisis de datos",
+   "nivel": "Básico",
+   "duracionHoras": 30,
+   "similitud": 0.3856
+  }
+ ],
+ "calificacion": {
+  "puntuacion": 3,
+  "comentario": "Útil, aunque esperaba más énfasis en la construcción de dashboards.",
+  "fecha": "2026-11-03T11:12:35"
+ }
+}
+
+==================================================================================
+CP 04 — «Quiero automatizar procesos empresariales.» · Camila Torres Paredes (id 5, Intermedio)
+==================================================================================
+Petición (frontend, POST /api/consultas): {"estudianteId":5,"pregunta":"Quiero automatizar procesos empresariales."}
+ consulta | est |        fecha        |   estado   | detalle_error | rec |            fuentes            
+----------+-----+---------------------+------------+---------------+-----+-------------------------------
+       10 |   5 | 2026-11-03 11:08:11 | Respondida |               |   4 | 17:0.5534 18:0.4886 19:0.4471
+(1 row)
+
+#66 RutaIAConsultaRAG success 2026-11-03 17:08:11.242 → 2026-11-03 17:08:14.855
+   Webhook
+   Configuración
+   Validar entrada
+   Cursos activos → HTTP 200
+   Embedding de la pregunta → HTTP 200
+   Validar vector
+   Buscar en Qdrant → HTTP 200
+   Filtrar fuentes
+   ¿Hay fuentes?
+   Construir mensaje
+   Consultar LLM → HTTP 200
+   Normalizar salida
+   Validar salida
+   Responder Respondida → {"consultaId":10,"pregunta":"Quiero automatizar procesos empresariales.","estado":"Respondida","respuesta":"Hola. Para automatizar procesos empresariales, te recomiendo los siguientes cursos de nuestro catálogo, organizados según tu nivel intermedi…","fuentes":"17:0.5534 18:0.4886 19:0.4471","error":null}
+GET /api/consultas/10 → HTTP 200
+{
+ "consultaId": 10,
+ "estudianteId": 5,
+ "pregunta": "Quiero automatizar procesos empresariales.",
+ "fecha": "2026-11-03T11:08:11",
+ "estado": "Respondida",
+ "respuesta": "Hola. Para automatizar procesos empresariales, te recomiendo los siguientes cursos de nuestro catálogo, organizados según tu nivel intermedio y el objetivo de automatización:\n\nPrimero, Automatización robótica de procesos administrativos. Al ser de nivel Intermedio, se alinea con tu experiencia y se enfoca específicamente en RPA para tareas administrativas, uso de UiPath Studio y Power Automate Desktop, y optimización de la productividad en oficinas.\n\nSegundo, Automatización de flujos de trabajo con n8n. Aunque es de nivel Básico, es fundamental para aprender a conectar aplicaciones vía APIs, webhooks y añadir inteligencia artificial a tus flujos de negocio.\n\nFinalmente, Scripts de automatización con Python. También de nivel Básico, te permitirá crear scripts personalizados para manejo de archivos, web scraping y consolidación de reportes, complementando las herramientas de software con programación.\n\nEstos tres cursos cubren integralmente tu necesidad desde la robótica, la integración de flujos y la programación de scripts.",
+ "mensaje": null,
+ "recomendacionId": 4,
+ "fuentes": [
+  {
+   "cursoId": 17,
+   "nombre": "Automatización de flujos de trabajo con n8n",
+   "descripcion": "Aprende a automatizar procesos empresariales y tareas repetitivas sin …",
+   "categoria": "Automatización",
+   "nivel": "Básico",
+   "duracionHoras": 25,
+   "similitud": 0.5534
+  },
+  {
+   "cursoId": 18,
+   "nombre": "Automatización robótica de procesos administrativos",
+   "descripcion": "Aprende automatización robótica de procesos (RPA) para que robots de s…",
+   "categoria": "Automatización",
+   "nivel": "Intermedio",
+   "duracionHoras": 35,
+   "similitud": 0.4886
+  },
+  {
+   "cursoId": 19,
+   "nombre": "Scripts de automatización con Python",
+   "descripcion": "Aprende a escribir scripts en Python para automatizar tareas repetitiv…",
+   "categoria": "Automatización",
+   "nivel": "Básico",
+   "duracionHoras": 30,
+   "similitud": 0.4471
+  }
+ ],
+ "calificacion": {
+  "puntuacion": 5,
+  "comentario": null,
+  "fecha": "2026-11-03T11:12:35"
+ }
+}
+
+==================================================================================
+CP 05 — «¿Qué puedo estudiar para trabajar con inteligencia artificial?» · Lucía Fernández Ortiz (id 3, Avanzado)
+==================================================================================
+Petición (frontend, POST /api/consultas): {"estudianteId":3,"pregunta":"¿Qué puedo estudiar para trabajar con inteligencia artificial?"}
+ consulta | est |        fecha        |   estado   | detalle_error | rec |                      fuentes                      
+----------+-----+---------------------+------------+---------------+-----+---------------------------------------------------
+       11 |   3 | 2026-11-03 11:08:33 | Respondida |               |   5 | 12:0.5256 16:0.4204 14:0.3770 15:0.3750 13:0.3730
+(1 row)
+
+#67 RutaIAConsultaRAG success 2026-11-03 17:08:33.471 → 2026-11-03 17:09:03.687
+   Webhook
+   Configuración
+   Validar entrada
+   Cursos activos → HTTP 200
+   Embedding de la pregunta → HTTP 200
+   Validar vector
+   Buscar en Qdrant → HTTP 200
+   Filtrar fuentes
+   ¿Hay fuentes?
+   Construir mensaje
+   Consultar LLM → HTTP 200
+   Normalizar salida
+   Validar salida
+   Responder Respondida → {"consultaId":11,"pregunta":"¿Qué puedo estudiar para trabajar con inteligencia artificial?","estado":"Respondida","respuesta":"Para trabajar con inteligencia artificial, considerando tu nivel avanzado, te recomiendo la siguiente ruta de aprendizaje:\n\nPrimero, Machine…","fuentes":"12:0.5256 16:0.4204 14:0.377 15:0.375 13:0.373","error":null}
+GET /api/consultas/11 → HTTP 200
+{
+ "consultaId": 11,
+ "estudianteId": 3,
+ "pregunta": "¿Qué puedo estudiar para trabajar con inteligencia artificial?",
+ "fecha": "2026-11-03T11:08:33",
+ "estado": "Respondida",
+ "respuesta": "Para trabajar con inteligencia artificial, considerando tu nivel avanzado, te recomiendo la siguiente ruta de aprendizaje:\n\nPrimero, Machine learning con Python y scikit-learn, para consolidar la base de modelos predictivos y limpieza de datos.\n\nLuego, puedes especializarte según tu interés en estas tres opciones avanzadas:\n1. Procesamiento de lenguaje natural con Python, si buscas analizar textos y crear sistemas de clasificación de opiniones.\n2. Modelos de lenguaje y generación aumentada por recuperación, si deseas desarrollar asistentes basados en LLM y arquitecturas RAG.\n3. Visión por computadora con redes neuronales, si te interesa el reconocimiento de imágenes y video.\n\nSi necesitas una introducción general, también contamos con Fundamentos de inteligencia artificial para principiantes.\n\nEsta ruta va desde la base del aprendizaje automático hacia especializaciones complejas en lenguaje y visión, alineándose con tu perfil experto.",
+ "mensaje": null,
+ "recomendacionId": 5,
+ "fuentes": [
+  {
+   "cursoId": 12,
+   "nombre": "Fundamentos de inteligencia artificial para principiantes",
+   "descripcion": "Curso introductorio para entender qué es la inteligencia artificial y …",
+   "categoria": "Inteligencia artificial",
+   "nivel": "Básico",
+   "duracionHoras": 20,
+   "similitud": 0.5256
+  },
+  {
+   "cursoId": 16,
+   "nombre": "Visión por computadora con redes neuronales",
+   "descripcion": "Aprende visión por computadora, la rama de la inteligencia artificial …",
+   "categoria": "Inteligencia artificial",
+   "nivel": "Avanzado",
+   "duracionHoras": 50,
+   "similitud": 0.4204
+  },
+  {
+   "cursoId": 14,
+   "nombre": "Modelos de lenguaje y generación aumentada por recuperación",
+   "descripcion": "Aprende a crear aplicaciones con modelos de lenguaje grandes (LLM) y a…",
+   "categoria": "Inteligencia artificial",
+   "nivel": "Avanzado",
+   "duracionHoras": 40,
+   "similitud": 0.377
+  },
+  {
+   "cursoId": 15,
+   "nombre": "Procesamiento de lenguaje natural con Python",
+   "descripcion": "Aprende procesamiento de lenguaje natural (PLN o NLP), el área de la i…",
+   "categoria": "Inteligencia artificial",
+   "nivel": "Avanzado",
+   "duracionHoras": 45,
+   "similitud": 0.375
+  },
+  {
+   "cursoId": 13,
+   "nombre": "Machine learning con Python y scikit-learn",
+   "descripcion": "Aprende machine learning, la rama de la inteligencia artificial que pe…",
+   "categoria": "Inteligencia artificial",
+   "nivel": "Intermedio",
+   "duracionHoras": 50,
+   "similitud": 0.373
+  }
+ ],
+ "calificacion": {
+  "puntuacion": 2,
+  "comentario": "Demasiados cursos para empezar; me habría servido una ruta más corta.",
+  "fecha": "2026-11-03T11:12:35"
+ }
+}
+
+==================================================================================
+CP 06 — «Quiero aprender a proteger aplicaciones web.» · Diego Ramírez Luna (id 6, Avanzado)
+==================================================================================
+Petición (frontend, POST /api/consultas): {"estudianteId":6,"pregunta":"Quiero aprender a proteger aplicaciones web."}
+Primer intento (consulta 12): embeddings 429 «free-models-per-day» (tope diario de 50 solicitudes :free con menos de 10 créditos comprados).
+Tras completar 10 créditos comprados (tope de 1000/día), intento válido: consulta 13.
+ consulta | est |        fecha        |   estado   |                                                                          detalle_error                                                                           | rec |           fuentes           
+----------+-----+---------------------+------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----+-----------------------------
+       12 |   6 | 2026-11-03 11:09:33 | Error      | n8n respondió HTTP 502: OpenRouter (/embeddings) respondió HTTP 429: Rate limit exceeded: free-models-per-day. Add 5 credits to unlock 1000 free model requests  |     | 
+       13 |   6 | 2026-11-03 11:24:35 | Respondida |                                                                                                                                                                  |   6 | 4:0.5599 27:0.4702 8:0.4087
+(2 rows)
+
+#68 RutaIAConsultaRAG success 2026-11-03 17:09:33.660 → 2026-11-03 17:09:34.008
+   Webhook
+   Configuración
+   Validar entrada
+   Cursos activos → HTTP 200
+   Embedding de la pregunta [salida 1] → HTTP 200
+   Armar error 502
+   Responder 502 → {"consultaId":12,"pregunta":"Quiero aprender a proteger aplicaciones web.","estado":"Error","respuesta":null,"fuentes":"","error":"OpenRouter (/embeddings) respondió HTTP 429: Rate limit exceeded: free-models-per-day. Add 5 credits to unlock 1000 free model requests per day"}
+#69 RutaIAConsultaRAG success 2026-11-03 17:24:35.122 → 2026-11-03 17:24:42.248
+   Webhook
+   Configuración
+   Validar entrada
+   Cursos activos → HTTP 200
+   Embedding de la pregunta → HTTP 200
+   Validar vector
+   Buscar en Qdrant → HTTP 200
+   Filtrar fuentes
+   ¿Hay fuentes?
+   Construir mensaje
+   Consultar LLM → HTTP 200
+   Normalizar salida
+   Validar salida
+   Responder Respondida → {"consultaId":13,"pregunta":"Quiero aprender a proteger aplicaciones web.","estado":"Respondida","respuesta":"Hola. Como orientador de RutaIA, he seleccionado tres cursos de nuestro catálogo para ayudarte a proteger aplicaciones web, considerando tu …","fuentes":"4:0.5599 27:0.4702 8:0.4087","error":null}
+GET /api/consultas/13 → HTTP 200
+{
+ "consultaId": 13,
+ "estudianteId": 6,
+ "pregunta": "Quiero aprender a proteger aplicaciones web.",
+ "fecha": "2026-11-03T11:24:35",
+ "estado": "Respondida",
+ "respuesta": "Hola. Como orientador de RutaIA, he seleccionado tres cursos de nuestro catálogo para ayudarte a proteger aplicaciones web, considerando tu nivel avanzado y tu interés en ciberseguridad.\n\nTe sugiero el siguiente orden:\n\n1. Seguridad de aplicaciones web con OWASP Top 10: Aunque es de nivel intermedio, es fundamental para dominar las vulnerabilidades más comunes y sus correcciones antes de pasar a fases avanzadas.\n\n2. Pruebas de seguridad y hacking ético web: Al ser de nivel avanzado, te permitirá aplicar metodologías de penetración y usar herramientas profesionales para descubrir fallos de seguridad.\n\n3. Autenticación y autorización segura con Spring Security: También de nivel avanzado, este curso es ideal para especializarte en la implementación técnica de accesos seguros, tokens y protección de APIs.\n\nEstos cursos cubren integralmente tu necesidad, desde la detección de vulnerabilidades hasta la implementación de medidas de seguridad robustas.",
+ "mensaje": null,
+ "recomendacionId": 6,
+ "fuentes": [
+  {
+   "cursoId": 4,
+   "nombre": "Seguridad de aplicaciones web con OWASP Top 10",
+   "descripcion": "Aprende a proteger aplicaciones web frente a los ataques más comunes u…",
+   "categoria": "Desarrollo web",
+   "nivel": "Intermedio",
+   "duracionHoras": 40,
+   "similitud": 0.5599
+  },
+  {
+   "cursoId": 27,
+   "nombre": "Pruebas de seguridad y hacking ético web",
+   "descripcion": "Aprende a realizar pruebas de seguridad a aplicaciones web de forma ét…",
+   "categoria": "Herramientas tecnológicas",
+   "nivel": "Avanzado",
+   "duracionHoras": 45,
+   "similitud": 0.4702
+  },
+  {
+   "cursoId": 8,
+   "nombre": "Autenticación y autorización segura con Spring Security",
+   "descripcion": "Aprende a proteger aplicaciones y APIs web implementando autenticación…",
+   "categoria": "Programación",
+   "nivel": "Avanzado",
+   "duracionHoras": 40,
+   "similitud": 0.4087
+  }
+ ],
+ "calificacion": null
+}
+
+==================================================================================
+CP 07 — «Necesito desplegar aplicaciones usando contenedores.» · Sofía Morales Acosta (id 7, Intermedio)
+==================================================================================
+Petición (frontend, POST /api/consultas): {"estudianteId":7,"pregunta":"Necesito desplegar aplicaciones usando contenedores."}
+ consulta | est |        fecha        |   estado   | detalle_error | rec |            fuentes            
+----------+-----+---------------------+------------+---------------+-----+-------------------------------
+       14 |   7 | 2026-11-03 11:24:59 | Respondida |               |   7 | 24:0.6088 26:0.4840 25:0.4204
+(1 row)
+
+#70 RutaIAConsultaRAG success 2026-11-03 17:24:59.475 → 2026-11-03 17:25:06.931
+   Webhook
+   Configuración
+   Validar entrada
+   Cursos activos → HTTP 200
+   Embedding de la pregunta → HTTP 200
+   Validar vector
+   Buscar en Qdrant → HTTP 200
+   Filtrar fuentes
+   ¿Hay fuentes?
+   Construir mensaje
+   Consultar LLM → HTTP 200
+   Normalizar salida
+   Validar salida
+   Responder Respondida → {"consultaId":14,"pregunta":"Necesito desplegar aplicaciones usando contenedores.","estado":"Respondida","respuesta":"Hola, soy el orientador académico de RutaIA. Para tu objetivo de desplegar aplicaciones usando contenedores y tu interés en DevOps, te recom…","fuentes":"24:0.6088 26:0.484 25:0.4204","error":null}
+GET /api/consultas/14 → HTTP 200
+{
+ "consultaId": 14,
+ "estudianteId": 7,
+ "pregunta": "Necesito desplegar aplicaciones usando contenedores.",
+ "fecha": "2026-11-03T11:24:59",
+ "estado": "Respondida",
+ "respuesta": "Hola, soy el orientador académico de RutaIA. Para tu objetivo de desplegar aplicaciones usando contenedores y tu interés en DevOps, te recomiendo la siguiente ruta de aprendizaje:\n\nPrimero, toma el curso Contenedores con Docker para desplegar aplicaciones. Al ser de nivel Intermedio, es el punto de partida ideal para aprender a empaquetar software, manejar imágenes y usar Docker Compose.\n\nSegundo, te sugiero Integración y entrega continua con contenedores. También de nivel Intermedio, este curso te permitirá automatizar la construcción y el despliegue mediante pipelines de CI/CD, alineándose directamente con las prácticas de DevOps.\n\nFinalmente, para alcanzar un nivel experto, recomienda Orquestación de contenedores con Kubernetes. Aunque es de nivel Avanzado, es fundamental para escalar y administrar aplicaciones con alta disponibilidad en la nube.\n\nEstos tres cursos cubren integralmente tu necesidad, desde la creación del contenedor hasta la automatización y la orquestación a gran escala.",
+ "mensaje": null,
+ "recomendacionId": 7,
+ "fuentes": [
+  {
+   "cursoId": 24,
+   "nombre": "Contenedores con Docker para desplegar aplicaciones",
+   "descripcion": "Aprende a empaquetar y desplegar aplicaciones usando contenedores con …",
+   "categoria": "Herramientas tecnológicas",
+   "nivel": "Intermedio",
+   "duracionHoras": 30,
+   "similitud": 0.6088
+  },
+  {
+   "cursoId": 26,
+   "nombre": "Integración y entrega continua con contenedores",
+   "descripcion": "Aprende a automatizar la construcción, las pruebas y el despliegue de …",
+   "categoria": "Herramientas tecnológicas",
+   "nivel": "Intermedio",
+   "duracionHoras": 35,
+   "similitud": 0.484
+  },
+  {
+   "cursoId": 25,
+   "nombre": "Orquestación de contenedores con Kubernetes",
+   "descripcion": "Aprende a desplegar, escalar y administrar aplicaciones en contenedore…",
+   "categoria": "Herramientas tecnológicas",
+   "nivel": "Avanzado",
+   "duracionHoras": 45,
+   "similitud": 0.4204
+  }
+ ],
+ "calificacion": null
+}
+
+==================================================================================
+CP 08 — «Quiero aprender cocina italiana.» · Javier Núñez Cabrera (id 8, Principiante)
+==================================================================================
+Petición (frontend, POST /api/consultas): {"estudianteId":8,"pregunta":"Quiero aprender cocina italiana."}
+ consulta | est |        fecha        |     estado     | detalle_error | rec | fuentes 
+----------+-----+---------------------+----------------+---------------+-----+---------
+        2 |   8 | 2026-11-03 10:27:44 | Sin resultados |               |     | 
+(1 row)
+
+#59 RutaIAConsultaRAG success 2026-11-03 16:27:44.315 → 2026-11-03 16:27:44.962
+   Webhook
+   Configuración
+   Validar entrada
+   Cursos activos → HTTP 200
+   Embedding de la pregunta → HTTP 200
+   Validar vector
+   Buscar en Qdrant → HTTP 200
+   Filtrar fuentes
+   ¿Hay fuentes? [salida 1]
+   Responder Sin resultados → {"consultaId":2,"pregunta":"Quiero aprender cocina italiana.","estado":"Sin resultados","respuesta":null,"fuentes":"","error":null}
+Buscar en Qdrant → (ningún punto sobre el umbral)
+Filtrar fuentes  → (ninguna)
+¿Se llamó al LLM? false
+GET /api/consultas/2 → HTTP 200
+{
+ "consultaId": 2,
+ "estudianteId": 8,
+ "pregunta": "Quiero aprender cocina italiana.",
+ "fecha": "2026-11-03T10:27:44",
+ "estado": "Sin resultados",
+ "respuesta": null,
+ "mensaje": "No encontramos cursos del catálogo relacionados con tu necesidad. Intenta describirla con otras palabras.",
+ "recomendacionId": null,
+ "fuentes": [],
+ "calificacion": null
+}
+ recomendaciones_de_la_consulta_2 
+----------------------------------
+                                0
+(1 row)
+
+
+==================================================================================
+CP 09 y CP 10 — por la API
+==================================================================================
+antes: consultas=2 · max(id)=2 · última ejecución n8n=59
+
+$ cat pruebas/api/etapa6-09-pregunta-espacios.json
+{"estudianteId":1,"pregunta":"   "}
+$ curl.exe -s -i -X POST "http://localhost:8080/api/consultas" --data-binary "@pruebas/api/etapa6-09-pregunta-espacios.json" -H "Content-Type: application/json"
+HTTP/1.1 400 
+Content-Type: application/json
+
+{"status":400,"error":"Bad Request","mensaje":"La solicitud contiene datos inválidos","ruta":"/api/consultas","fecha":"2026-11-03T10:28:13","detalles":[{"campo":"pregunta","mensaje":"es obligatoria"}]}
+
+
+$ cat pruebas/api/etapa6-10-estudiante-inexistente.json
+{"estudianteId":999999,"pregunta":"Quiero aprender a crear páginas web."}
+$ curl.exe -s -i -X POST "http://localhost:8080/api/consultas" --data-binary "@pruebas/api/etapa6-10-estudiante-inexistente.json" -H "Content-Type: application/json"
+HTTP/1.1 404 
+Content-Type: application/json
+
+{"status":404,"error":"Not Found","mensaje":"No existe un estudiante con id 999999","ruta":"/api/consultas","fecha":"2026-11-03T10:28:13","detalles":[]}
+
+
+después: consultas=2 · max(id)=2 · última ejecución n8n=59
+
+######## CALIFICACIONES (recomendación 1 desde el frontend: Historial → Ver detalle → 5 estrellas + comentario; 2–5 por la API)
+
+$ curl.exe -s -i -X POST "http://localhost:8080/api/recomendaciones/2/calificacion" --data-binary "@pruebas/api/integracion-01-calificacion-4.json" -H "Content-Type: application/json"
+HTTP/1.1 201 
+Location: http://localhost:8080/api/recomendaciones/2/calificacion
+{"recomendacionId":2,"puntuacion":4,"comentario":"Buena ruta hacia Spring Boot; faltó indicar cuánto tiempo dedicar a cada curso.","fecha":"2026-11-03T11:12:35"}
+
+$ curl.exe -s -i -X POST "http://localhost:8080/api/recomendaciones/3/calificacion" --data-binary "@pruebas/api/integracion-02-calificacion-3.json" -H "Content-Type: application/json"
+HTTP/1.1 201 
+Location: http://localhost:8080/api/recomendaciones/3/calificacion
+{"recomendacionId":3,"puntuacion":3,"comentario":"Útil, aunque esperaba más énfasis en la construcción de dashboards.","fecha":"2026-11-03T11:12:35"}
+
+$ curl.exe -s -i -X POST "http://localhost:8080/api/recomendaciones/4/calificacion" --data-binary "@pruebas/api/integracion-03-calificacion-5-sin-comentario.json" -H "Content-Type: application/json"
+HTTP/1.1 201 
+Location: http://localhost:8080/api/recomendaciones/4/calificacion
+{"recomendacionId":4,"puntuacion":5,"comentario":null,"fecha":"2026-11-03T11:12:35"}
+
+$ curl.exe -s -i -X POST "http://localhost:8080/api/recomendaciones/5/calificacion" --data-binary "@pruebas/api/integracion-04-calificacion-2.json" -H "Content-Type: application/json"
+HTTP/1.1 201 
+Location: http://localhost:8080/api/recomendaciones/5/calificacion
+{"recomendacionId":5,"puntuacion":2,"comentario":"Demasiados cursos para empezar; me habría servido una ruta más corta.","fecha":"2026-11-03T11:12:35"}
+
+$ calificaciones en la BD
+ id | rec | consulta | puntuacion |                                   comentario                                    |        fecha        
+----+-----+----------+------------+---------------------------------------------------------------------------------+---------------------
+  1 |   1 |        7 |          5 | Ruta clara para empezar desde cero; me ayudó a ordenar los cursos.              | 2026-11-03 11:12:15
+  2 |   2 |        8 |          4 | Buena ruta hacia Spring Boot; faltó indicar cuánto tiempo dedicar a cada curso. | 2026-11-03 11:12:35
+  3 |   3 |        9 |          3 | Útil, aunque esperaba más énfasis en la construcción de dashboards.             | 2026-11-03 11:12:35
+  4 |   4 |       10 |          5 | (sin comentario)                                                                | 2026-11-03 11:12:35
+  5 |   5 |       11 |          2 | Demasiados cursos para empezar; me habría servido una ruta más corta.           | 2026-11-03 11:12:35
+(5 rows)
+
+
+ recomendacion_id | puntuacion |                             comentario                             
+------------------+------------+--------------------------------------------------------------------
+                1 |          5 | Ruta clara para empezar desde cero; me ayudó a ordenar los cursos.
+(1 row)
+
+
+######## ESTADÍSTICAS (E-14) CONTRA SQL
+$ curl.exe -s "http://localhost:8080/api/estadisticas"
+{"totalConsultas":15,"consultasRespondidas":8,"consultasSinResultados":1,"promedioCalificaciones":3.8,"cursoMasRecomendado":{"cursoId":4,"nombre":"Seguridad de aplicaciones web con OWASP Top 10","vecesRecomendado":3}}
+$ docker compose exec -T postgres psql -U rutaia_app -d rutaia < pruebas/bd/etapa7-control-estadisticas.sql
+== totalConsultas, consultasRespondidas, consultasSinResultados
+ total_consultas | consultas_respondidas | consultas_sin_resultados 
+-----------------+-----------------------+--------------------------
+              15 |                     8 |                        1
+(1 row)
+
+== promedioCalificaciones (NULL si no hay calificaciones)
+ promedio_calificaciones | calificaciones 
+-------------------------+----------------
+                    3.80 |              5
+(1 row)
+
+== cursoMasRecomendado: la primera fila (más filas en recomendacion_fuente; en empate, menor curso_id)
+ curso_id |                         nombre                          | veces_recomendado 
+----------+---------------------------------------------------------+-------------------
+        4 | Seguridad de aplicaciones web con OWASP Top 10          |                 3
+        2 | JavaScript y manipulación del DOM                       |                 2
+        3 | Diseño web responsive con Flexbox y Grid                |                 2
+        8 | Autenticación y autorización segura con Spring Security |                 2
+        1 | Fundamentos de HTML y CSS para páginas web              |                 1
+(5 rows)
+
+$ conteos finales
+ consultas | pendientes | recomendaciones | fuentes | calificaciones 
+-----------+------------+-----------------+---------+----------------
+        15 |          0 |               8 |      29 |              5
+(1 row)
+
+     estado     | count 
+----------------+-------
+ Error          |     6
+ Respondida     |     8
+ Sin resultados |     1
+(3 rows)
+
+
+######## ROBUSTEZ 1 — n8n detenido (0 solicitudes)
+$ docker compose stop n8n
+ Container rutaia-n8n-1 Stopping 
+ Container rutaia-n8n-1 Stopped 
+
+$ curl.exe -s -i -X POST "http://localhost:8080/api/consultas" --data-binary "@pruebas/api/etapa6-09-pregunta-espacios.json" -H "Content-Type: application/json"   (n8n detenido)
+HTTP/1.1 400 
+{"status":400,"error":"Bad Request","mensaje":"La solicitud contiene datos inválidos","ruta":"/api/consultas","fecha":"2026-11-03T10:28:42","detalles":[{"campo":"pregunta","mensaje":"es obligatoria"}]}
+consultas tras el 400: 2
+
+$ cat cuerpo
+{"estudianteId":10,"pregunta":"Quiero aprender a diseñar bases de datos."}
+$ curl.exe -s -i -X POST "http://localhost:8080/api/consultas" --data-binary "@<cuerpo>" -H "Content-Type: application/json"   (n8n detenido)
+HTTP/1.1 201 
+Location: http://localhost:8080/api/consultas/3
+{"consultaId":3,"estudianteId":10,"pregunta":"Quiero aprender a diseñar bases de datos.","fecha":"2026-11-03T10:28:42","estado":"Error","respuesta":null,"mensaje":"No fue posible generar la recomendación en este momento. Intenta de nuevo más tarde.","recomendacionId":null,"fuentes":[]}
+
+real	0m0.112s
+user	0m0.030s
+sys	0m0.077s
+
+$ fila en la base
+ id | estudiante_id | estado |            detalle_error             
+----+---------------+--------+--------------------------------------
+  3 |            10 | Error  | n8n no respondió: conexión rechazada
+(1 row)
+
+$ docker compose start n8n
+ Container rutaia-n8n-1 Starting 
+ Container rutaia-n8n-1 Started 
+
+######## ROBUSTEZ 2 — Qdrant detenido (1 solicitud: embedding)
+$ docker compose stop qdrant
+ Container rutaia-qdrant-1 Stopping 
+ Container rutaia-qdrant-1 Stopped 
+
+$ curl.exe -s -i -X POST "http://localhost:8080/api/consultas" --data-binary "@<cuerpo>" -H "Content-Type: application/json"   (Qdrant detenido)   [solicitud 5: embedding]
+HTTP/1.1 201 
+Location: http://localhost:8080/api/consultas/4
+{"consultaId":4,"estudianteId":10,"pregunta":"Quiero aprender a diseñar bases de datos.","fecha":"2026-11-03T10:29:15","estado":"Error","respuesta":null,"mensaje":"No fue posible generar la recomendación en este momento. Intenta de nuevo más tarde.","recomendacionId":null,"fuentes":[]}
+
+$ fila en la base
+ id | estudiante_id | estado |                                             detalle_error                                             
+----+---------------+--------+-------------------------------------------------------------------------------------------------------
+  4 |            10 | Error  | n8n respondió HTTP 502: Qdrant (/points/query) no respondió (EAI_AGAIN): getaddrinfo EAI_AGAIN qdrant
+(1 row)
+
+$ ejecución de n8n
+60 | RutaIAConsultaRAG | success | webhook | 2026-11-03 16:29:17.395 | 2026-11-03 16:29:23.420
+#60 RutaIAConsultaRAG success 2026-11-03 16:29:17.395 → 2026-11-03 16:29:23.420
+   Webhook
+   Configuración
+   Validar entrada
+   Cursos activos → HTTP 200
+   Embedding de la pregunta → HTTP 200
+   Validar vector
+   Buscar en Qdrant [salida 1]
+   Armar error 502
+   Responder 502 → {"consultaId":4,"pregunta":"Quiero aprender a diseñar bases de datos.","estado":"Error","respuesta":null,"fuentes":"","error":"Qdrant (/points/query) no respondió (EAI_AGAIN): getaddrinfo EAI_AGAIN qdrant"}
+$ docker compose start qdrant
+ Container rutaia-qdrant-1 Starting 
+ Container rutaia-qdrant-1 Started 
+Qdrant tras reanudar: estado y puntos = green 30
+
+######## ROBUSTEZ 3 — curso desactivado sin re-indexar, restauración y re-indexado (3 solicitudes)
+$ curl.exe -s -X PATCH "http://localhost:8080/api/admin/cursos/1/desactivar"
+{"id":1,"nombre":"Fundamentos de HTML y CSS para páginas web","activo":false}
+$ curl.exe -s "http://localhost:8080/api/cursos"   → cursos activos: 27 · ¿incluye el 1? false
+$ Qdrant, payload del punto 1 (sin re-indexar): activo=true
+
+$ curl.exe -s -i -X POST "http://localhost:8080/api/consultas" --data-binary "@pruebas/api/etapa6-01-paginas-web.json" -H "Content-Type: application/json"   [solicitudes 25 y 26]
+HTTP/1.1 201 
+Location: http://localhost:8080/api/consultas/15
+{"consultaId":15,"estado":"Respondida","recomendacionId":8,"fuentes":"2:0.3843 3:0.375 4:0.3644","respuesta":"Hola. Para iniciar tu camino en el desarrollo web, te recomiendo los siguientes cursos de nuestro catálogo, aunque debes considerar que no contamos con un curso…","nombraCurso1":false}
+$ ejecución de n8n
+#71
+Buscar en Qdrant → 1:0.5930(activo=true) 2:0.3843(activo=true) 3:0.3750(activo=true) 4:0.3644(activo=true)
+Filtrar fuentes  → 2:0.3843 3:0.375 4:0.3644
+¿Se llamó al LLM? true
+
+$ docker compose exec postgres psql -U rutaia_app -d rutaia -c "UPDATE curso SET activo = true WHERE id = 1;"   (no hay endpoint de reactivación)
+UPDATE 1
+$ GET /api/admin/cursos/1 → activo=true · GET /api/cursos → 28 activos
+
+$ curl.exe -s -X POST http://127.0.0.1:5678/webhook/rutaia-indexar-cursos   [solicitud 27]
+{"coleccion":"rutaia_cursos","coleccionCreada":false,"cursosLeidos":30,"puntosGuardados":30,"activos":28,"inactivos":2,"totalPuntos":30}
+$ Qdrant: status=green points_count=30 · punto 1: activo=true
+$ ejecución de n8n
+72 | RutaIAIndexacion | success | webhook | 2026-11-03 17:26:45.820 | 2026-11-03 17:26:47.605
+GET /api/consultas/15 → HTTP 200
+{
+ "consultaId": 15,
+ "estudianteId": 1,
+ "pregunta": "Quiero aprender a crear páginas web.",
+ "fecha": "2026-11-03T11:26:25",
+ "estado": "Respondida",
+ "respuesta": "Hola. Para iniciar tu camino en el desarrollo web, te recomiendo los siguientes cursos de nuestro catálogo, aunque debes considerar que no contamos con un curso de nivel Básico para cubrir los fundamentos iniciales de HTML y CSS.\n\nTe sugiero este orden:\n\n1. Diseño web responsive con Flexbox y Grid: Es el punto de partida ideal para aprender a estructurar páginas que se adapten a cualquier dispositivo.\n\n2. JavaScript y manipulación del DOM: Una vez que domines el diseño, este curso te permitirá añadir interactividad y comportamiento dinámico a tus sitios.\n\n3. Seguridad de aplicaciones web con OWASP Top 10: Finalmente, es fundamental que aprendas a proteger tus aplicaciones frente a ataques comunes.\n\nTen en cuenta que los tres cursos son de nivel Intermedio, por lo que es recomendable que tengas nociones básicas de HTML y CSS antes de comenzar.",
+ "mensaje": null,
+ "recomendacionId": 8,
+ "fuentes": [
+  {
+   "cursoId": 2,
+   "nombre": "JavaScript y manipulación del DOM",
+   "descripcion": "Aprende a programar en JavaScript para dar interactividad y comportami…",
+   "categoria": "Desarrollo web",
+   "nivel": "Intermedio",
+   "duracionHoras": 50,
+   "similitud": 0.3843
+  },
+  {
+   "cursoId": 3,
+   "nombre": "Diseño web responsive con Flexbox y Grid",
+   "descripcion": "Aprende a crear páginas web que se vean bien en celulares, tabletas y …",
+   "categoria": "Desarrollo web",
+   "nivel": "Intermedio",
+   "duracionHoras": 30,
+   "similitud": 0.375
+  },
+  {
+   "cursoId": 4,
+   "nombre": "Seguridad de aplicaciones web con OWASP Top 10",
+   "descripcion": "Aprende a proteger aplicaciones web frente a los ataques más comunes u…",
+   "categoria": "Desarrollo web",
+   "nivel": "Intermedio",
+   "duracionHoras": 40,
+   "similitud": 0.3644
+  }
+ ],
+ "calificacion": null
+}
+
+######## ESTADO FINAL
+     estado     | count 
+----------------+-------
+ Error          |     6
+ Respondida     |     8
+ Sin resultados |     1
+(3 rows)
+
+ pendientes | consultas 
+------------+-----------
+          0 |        15
+(1 row)
+
+$ ejecuciones de n8n de la integración
+57 | RutaIAIndexacion | success | webhook | 2026-11-03 16:25:35.360 | 2026-11-03 16:25:38.223
+58 | RutaIAConsultaRAG | success | webhook | 2026-11-03 16:26:30.875 | 2026-11-03 16:26:33.344
+59 | RutaIAConsultaRAG | success | webhook | 2026-11-03 16:27:44.315 | 2026-11-03 16:27:44.962
+60 | RutaIAConsultaRAG | success | webhook | 2026-11-03 16:29:17.395 | 2026-11-03 16:29:23.420
+61 | RutaIAConsultaRAG | success | webhook | 2026-11-03 16:29:41.457 | 2026-11-03 16:29:44.720
+62 | RutaIAConsultaRAG | success | webhook | 2026-11-03 16:34:58.508 | 2026-11-03 16:35:11.291
+63 | RutaIAConsultaRAG | success | webhook | 2026-11-03 17:07:02.875 | 2026-11-03 17:07:07.529
+64 | RutaIAConsultaRAG | success | webhook | 2026-11-03 17:07:27.420 | 2026-11-03 17:07:32.112
+65 | RutaIAConsultaRAG | success | webhook | 2026-11-03 17:07:49.504 | 2026-11-03 17:07:53.671
+66 | RutaIAConsultaRAG | success | webhook | 2026-11-03 17:08:11.242 | 2026-11-03 17:08:14.855
+67 | RutaIAConsultaRAG | success | webhook | 2026-11-03 17:08:33.471 | 2026-11-03 17:09:03.687
+68 | RutaIAConsultaRAG | success | webhook | 2026-11-03 17:09:33.660 | 2026-11-03 17:09:34.008
+69 | RutaIAConsultaRAG | success | webhook | 2026-11-03 17:24:35.122 | 2026-11-03 17:24:42.248
+70 | RutaIAConsultaRAG | success | webhook | 2026-11-03 17:24:59.475 | 2026-11-03 17:25:06.931
+71 | RutaIAConsultaRAG | success | webhook | 2026-11-03 17:26:25.566 | 2026-11-03 17:26:31.541
+72 | RutaIAIndexacion | success | webhook | 2026-11-03 17:26:45.820 | 2026-11-03 17:26:47.605

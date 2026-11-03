@@ -1,6 +1,6 @@
 [
   {
-    "updatedAt": "2026-11-03T04:16:01.000Z",
+    "updatedAt": "2026-11-03T17:01:33.000Z",
     "createdAt": "2026-11-02T23:40:48.118Z",
     "id": "RutaIACalibracion",
     "name": "RutaIA - Calibración de umbral",
@@ -59,7 +59,7 @@
               {
                 "id": "a4c0e0b0-0000-4000-8000-000000000023",
                 "name": "modeloLlm",
-                "value": "google/gemma-4-26b-a4b-it:free",
+                "value": "google/gemma-4-31b-it",
                 "type": "string"
               },
               {
@@ -439,9 +439,9 @@
     "meta": null,
     "nodeGroups": [],
     "pinData": {},
-    "versionId": "b28a6ce7-836e-495c-90fe-864d0d157488",
-    "activeVersionId": "b28a6ce7-836e-495c-90fe-864d0d157488",
-    "versionCounter": 2,
+    "versionId": "5fcac003-52ba-48a1-9359-c3a425346c89",
+    "activeVersionId": "5fcac003-52ba-48a1-9359-c3a425346c89",
+    "versionCounter": 4,
     "triggerCount": 1,
     "sourceWorkflowId": null,
     "tags": [],

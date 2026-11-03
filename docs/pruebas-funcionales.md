@@ -312,3 +312,71 @@ En el primer recorrido, el clic en una estrella no marcaba la puntuación, ni en
 | 09 | API detenida: «No se pudo conectar con el servidor» | `etapa8-1280-09-sin-conexion.png` | `etapa8-360-09-sin-conexion.png` |
 
 Las capturas 01 a 04 se tomaron antes de corregir el defecto de las estrellas; el cambio solo afecta al ratón sobre las estrellas, no a su aspecto.
+
+## Integración — proceso completo de punta a punta
+
+Fecha: 2026-11-03 (hora local UTC−6) · Máquina: Windows 11 Home 10.0.26200 · JDK 21.0.13 (Temurin) · Docker Compose con `postgres:17`, `qdrant/qdrant:v1.20.0` y n8n 2.45.7 · API con `bootRun` en el 8080 (arrancada el 2026-11-02 23:42 con el código vigente; el backend no cambió después de la Etapa 7) · frontend con `jwebserver` en `127.0.0.1:5500`.
+
+Estado inicial: la base se reinició con `01_esquema.sql` y `02_datos_semilla.sql` (comandos de C12): 10 estudiantes, 30 cursos (28 activos), 0 consultas. Después se re-indexó con W-2. Antes del reinicio se respaldaron los datos de las etapas anteriores.
+
+Las consultas 1–8 se enviaron desde el frontend, en el navegador integrado, una sola vez cada una salvo los reintentos por fallas externas que se explican abajo. La 9, la 10 y las de robustez se enviaron por la API. Detalle completo (peticiones, respuestas, filas de BD y nodos ejecutados en n8n): `docs/evidencias/integracion-consultas.txt`. Verificación del contrato: `docs/evidencias/integracion-verificacion.txt`. Informe: `docs/informe-integracion.md`.
+
+| ID | Requisito | Pasos | Esperado | Obtenido | Evidencia | Solicitudes a OpenRouter |
+|---|---|---|---|---|---|---|
+| INT-01 | Contrato C3–C12 | Comparar estructura, `.gitattributes`, `gradlew`, `information_schema`/`pg_indexes`, CHECK y enums, `/v3/api-docs`, flujos publicados, colección de Qdrant, modelos, `.env` y compose con el contrato | Sin diferencias, o cada diferencia asignada a una etapa | OK. Única diferencia: el modelo del LLM en C8/C10 (Etapa 5). Se resolvió por decisión del autor y quedó en el registro de cambios del contrato | `integracion-verificacion.txt` | 0 |
+| INT-02 | Conexión y CORS (C6, C11) | `docker compose up -d`, backend y `jwebserver`; preflight `OPTIONS /api/consultas` desde varios orígenes | 5500 permitido; `http://otro.test` rechazado | OK: `localhost:5500` y `127.0.0.1:5500` → 200 con `Access-Control-Allow-Origin`; `otro.test` → 403 «Invalid CORS request»; DELETE → 403. `.env` igual a C11, sin ajustes | `integracion-verificacion.txt` | 0 |
+| INT-03 | Estado limpio y W-2 | SQL de C12; `POST /webhook/rutaia-indexar-cursos` | 30 puntos en Qdrant | OK: `cursosLeidos` 30, `activos` 28, `inactivos` 2, `points_count` 30 (ejecución #57) | `integracion-consultas.txt` | 1 |
+| INT-04 | CP 01 páginas web (Valeria, id 1) | Frontend: elegir perfil → Consultar | 201 Respondida, 1–5 fuentes activas ≥ 0,34, texto plano solo con cursos de las fuentes | OK en la **consulta 7**: Respondida, fuentes 1, 2, 3, 4 (0,5930–0,3644). Antes, las consultas 1, 5 y 6 terminaron en Error por el proveedor del LLM (`:free`: 429 compartido y Google 500/504 con la clave propia). Eso llevó a pasar al LLM de pago | `integracion-consultas.txt` (#58, #61, #62, #63) | 2 (+6 en los 3 intentos fallidos) |
+| INT-05 | CP 02 Java y Spring Boot (Andrés, id 2) | Frontend | Igual que INT-04 | OK, consulta 8: fuentes 5, 6, 7, 8 (0,6286–0,3974) | #64 | 2 |
+| INT-06 | CP 03 datos y dashboards (Mateo, id 4) | Frontend | Igual que INT-04 | OK, consulta 9: fuentes 21, 20, 9, 22 (0,5322–0,3856) | #65 | 2 |
+| INT-07 | CP 04 automatizar procesos (Camila, id 5) | Frontend | Igual que INT-04 | OK, consulta 10: fuentes 17, 18, 19 (0,5534–0,4471) | #66 | 2 |
+| INT-08 | CP 05 inteligencia artificial (Lucía, id 3) | Frontend | Igual que INT-04 | OK, consulta 11: fuentes 12, 16, 14, 15, 13 (0,5256–0,3730); el proveedor tardó unos 40 s | #67 | 2 |
+| INT-09 | CP 06 proteger aplicaciones web (Diego, id 6) | Frontend | Igual que INT-04 | OK en la **consulta 13**: fuentes 4, 27, 8 (0,5599–0,4087). Antes, la consulta 12 terminó en Error: 429 «free-models-per-day» en los embeddings (tope de 50 diarias con menos de 10 créditos comprados) | #68, #69 | 2 (+1 rechazada) |
+| INT-10 | CP 07 contenedores (Sofía, id 7) | Frontend | Igual que INT-04 | OK, consulta 14: fuentes 24, 26, 25 (0,6088–0,4204) | #70 | 2 |
+| INT-11 | CP 08 cocina italiana (Javier, id 8) | Frontend | 201 Sin resultados, sin fila en `recomendacion`, sin LLM | OK, consulta 2: Sin resultados con MSG_SIN_RESULTADOS; 0 filas en `recomendacion`; Qdrant no devolvió puntos sobre 0,34 y la ejecución #59 no pasó por «Consultar LLM» | #59 | 1 |
+| INT-12 | CP 09 pregunta `"   "` | API, `etapa6-09-pregunta-espacios.json`, con n8n arriba y con n8n detenido | 400, sin consulta nueva y sin ejecución en n8n | OK: 400 `detalles` [pregunta: «es obligatoria»] en ambos casos; consultas 2 → 2; última ejecución #59 → #59 | `integracion-consultas.txt` | 0 |
+| INT-13 | CP 10 estudiante 999999 | API, `etapa6-10-estudiante-inexistente.json` | 404, sin consulta nueva | OK: 404 «No existe un estudiante con id 999999»; consultas 2 → 2 | `integracion-consultas.txt` | 0 |
+| INT-14 | RF 15 y RF 16 en la interfaz | Resultado en Consultar; Historial de Valeria; Ver detalle de la consulta 7 | Recomendación distinta de las fuentes; historial con fecha, pregunta, estado, resumen y cursos; detalle completo | OK: el resultado separa «Recomendación de RutaIA» y «Fuentes del catálogo (n)» con similitud. El historial muestra 4 consultas de Valeria, de la más reciente a la más antigua, con el resumen cortado con «…» y los cursos. El detalle carga E-12 | Panel de red: `GET /api/consultas/7` → 200 | 0 |
+| INT-15 | 5 calificaciones (RF 17, D6) | Recomendación 1 desde el detalle del frontend (5 estrellas + comentario); recomendaciones 2–5 por la API (`integracion-01..04`) | 5 calificaciones distintas, puntuaciones variadas, una sin comentario | OK: 5, 4, 3, 5 (sin comentario) y 2; todas 201 con `Location` | `integracion-consultas.txt` | 0 |
+| INT-16 | Datos mínimos (D5, D6) | Conteos en PostgreSQL | ≥ 10 consultas y ≥ 5 calificaciones | OK: 15 consultas (8 Respondida, 1 Sin resultados, 6 Error) y 5 calificaciones | `integracion-consultas.txt` | 0 |
+| INT-17 | Estadísticas (RF 18) | `GET /api/estadisticas` frente a `pruebas/bd/etapa7-control-estadisticas.sql` | Coinciden | OK: 15 / 8 / 1, promedio 3,8 (SQL 3,80), curso más recomendado 4 «Seguridad de aplicaciones web con OWASP Top 10» con 3 | `integracion-consultas.txt` | 0 |
+| INT-18 | RN 10: n8n detenido | `docker compose stop n8n`; consulta temática | 201 Error sin gastar cuota | OK, consulta 3: Error, `detalle_error` «n8n no respondió: conexión rechazada», en 0,11 s | `integracion-consultas.txt` | 0 |
+| INT-19 | RN 10: Qdrant detenido | `docker compose stop qdrant`; consulta temática | 201 Error | OK, consulta 4: Error «Qdrant (/points/query) no respondió (EAI_AGAIN)» (#60). El embedding se gastó antes, por diseño (Etapa 5) | #60 | 1 |
+| INT-20 | RN 02: curso desactivado sin re-indexar | `PATCH /api/admin/cursos/1/desactivar`; repetir CP 01; restaurar por SQL y re-indexar | El curso no aparece; después vuelve a estar indexado como activo | OK, consulta 15: Respondida con 2, 3 y 4. Qdrant aún devolvió el 1 (`activo=true`) y «Filtrar fuentes» lo descartó (#71). Restaurado con `UPDATE` y re-indexado (#72): 30 puntos, el 1 con `activo=true` | #71, #72 | 3 |
+| INT-21 | Ninguna consulta en Pendiente | `SELECT … WHERE estado = 'Pendiente'` | 0 | OK: 0 | `integracion-consultas.txt` | 0 |
+| INT-22 | RN 12 y ENT-14: repositorio limpio | `git ls-files`, búsqueda de claves, contraseña y compilados en archivos e historial | Ninguno | OK: sin `.env`, dependencias, `build/` ni `.class`; 0 claves reales y 0 apariciones de la contraseña. Los únicos «sk-or-» son marcadores `sk-or-v1-…` de la documentación | `integracion-verificacion.txt` | 0 |
+| INT-23 | RF 06: el frontend solo habla con la API | Buscar `5678`, `6333`, `openrouter` y `webhook` en `frontend/` | 0 | OK: 0; `API_BASE_URL = "http://localhost:8080/api"` | `integracion-verificacion.txt` | 0 |
+| INT-24 | Verificación cruzada en el otro sistema operativo | Seguir el README desde cero en Linux | Contenedores, backend, frontend y una consulta temática | **Pendiente**: lista de pasos para el autor en `docs/informe-integracion.md` | — | — |
+
+Total de solicitudes a OpenRouter en la integración: **27**. Presupuesto: ≤ 25; **superado en 2**. Fueron:
+- 2 de W-2;
+- 14 de las 7 temáticas válidas;
+- 1 de cocina;
+- 1 de Qdrant detenido;
+- 2 de la prueba del curso desactivado;
+- 7 en intentos fallidos por causas externas: 6 por el proveedor gratuito del LLM y 1 rechazada por el tope diario.
+
+Las 8 llamadas al LLM que se completaron usaron la variante de pago `google/gemma-4-31b-it` y costaron menos de 0,01 USD en total.
+
+### Total del proyecto
+
+| Etapa | Solicitudes |
+|---|---|
+| 0 | 8 (y 2 rechazadas por autenticación) |
+| 1 y 2 | 0 |
+| 3 | 2 |
+| 4 | 1 |
+| 5 | 41 |
+| 6 | 7 |
+| 7 | 0 |
+| 8 | 3 |
+| Integración | 27 |
+| **Total** | **89** |
+
+### Resumen final
+
+- **Proceso único (Sec. 2):** frontend → API → PostgreSQL y n8n → OpenRouter y Qdrant → API → frontend funcionan juntos. Las 7 consultas temáticas terminan en Respondida, la de cocina en Sin resultados, la pregunta vacía se rechaza sin llegar a n8n y la del estudiante inexistente no crea la consulta.
+- **Validaciones y errores:** 400 y 404 antes de tocar la base, CORS restringido, Error ante n8n o Qdrant caídos (también ante fallas del proveedor del LLM, sin dejar consultas en Pendiente) y cursos desactivados excluidos sin re-indexar.
+- **Datos:** 15 consultas, 8 recomendaciones con 29 fuentes, 5 calificaciones (promedio 3,80) y estadísticas iguales a SQL.
+- **Cambio de configuración:** el LLM pasó a `google/gemma-4-31b-it` de pago porque la capa gratuita de Gemma estaba saturada o fallaba. Es una excepción a C10 aprobada por el autor y registrada en `docs/contrato.md`.
+- **Pendiente:** la verificación cruzada en Linux (INT-24).
