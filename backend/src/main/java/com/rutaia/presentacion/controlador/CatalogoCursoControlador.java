@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.rutaia.aplicacion.dto.curso.CursoCatalogoResponse;
-import com.rutaia.aplicacion.servicio.impl.CursoServicioImpl;
+import com.rutaia.aplicacion.servicio.CatalogoCursoServicio;
 import com.rutaia.configuracion.OpenApiConfiguracion.Etiquetas;
 import com.rutaia.dominio.NivelCurso;
 import com.rutaia.presentacion.documentacion.EjemplosApi;
@@ -31,10 +31,10 @@ public class CatalogoCursoControlador {
 	private static final String EJEMPLO_CATALOGO = """
 			[{"id":1,"nombre":"Fundamentos de HTML y CSS para páginas web","descripcion":"Curso para quienes quieren aprender a crear páginas web desde cero...","categoria":"Desarrollo web","nivel":"Básico","duracionHoras":40}]""";
 
-	private final CursoServicioImpl cursoServicio;
+	private final CatalogoCursoServicio catalogoCursoServicio;
 
-	public CatalogoCursoControlador(CursoServicioImpl cursoServicio) {
-		this.cursoServicio = cursoServicio;
+	public CatalogoCursoControlador(CatalogoCursoServicio catalogoCursoServicio) {
+		this.catalogoCursoServicio = catalogoCursoServicio;
 	}
 
 	@GetMapping
@@ -57,7 +57,7 @@ public class CatalogoCursoControlador {
 			@Parameter(description = "Nivel del curso", schema = @Schema(type = "string",
 					allowableValues = { "Básico", "Intermedio", "Avanzado" }), example = "Básico")
 			@RequestParam(required = false) NivelCurso nivel) {
-		return cursoServicio.listarCatalogo(categoria, nivel);
+		return catalogoCursoServicio.listarCatalogo(categoria, nivel);
 	}
 
 }

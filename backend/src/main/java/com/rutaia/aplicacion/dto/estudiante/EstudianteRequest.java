@@ -10,7 +10,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
-@Schema(description = "Datos para registrar un estudiante")
+@Schema(name = "EstudianteRequest", description = "Datos para registrar un estudiante")
 public record EstudianteRequest(
 
 		@Schema(example = "Ana María Torres", maxLength = 120)

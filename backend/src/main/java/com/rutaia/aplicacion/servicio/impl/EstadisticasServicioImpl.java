@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.rutaia.aplicacion.dto.estadistica.EstadisticasResponse;
+import com.rutaia.aplicacion.servicio.EstadisticasServicio;
 import com.rutaia.dominio.EstadoConsulta;
 import com.rutaia.persistencia.CalificacionRepositorio;
 import com.rutaia.persistencia.ConsultaRepositorio;
@@ -15,7 +16,7 @@ import com.rutaia.persistencia.RecomendacionFuenteRepositorio;
 
 /** E-14 (RF 18): todo se calcula con consultas agregadas; no se cargan entidades. */
 @Service
-public class EstadisticasServicioImpl {
+public class EstadisticasServicioImpl implements EstadisticasServicio {
 
 	private final ConsultaRepositorio consultaRepositorio;
 	private final CalificacionRepositorio calificacionRepositorio;
@@ -28,6 +29,7 @@ public class EstadisticasServicioImpl {
 		this.recomendacionFuenteRepositorio = recomendacionFuenteRepositorio;
 	}
 
+	@Override
 	@Transactional(readOnly = true)
 	public EstadisticasResponse calcular() {
 		ConsultaRepositorio.ConteoConsultas conteo = consultaRepositorio.contarPorEstado(

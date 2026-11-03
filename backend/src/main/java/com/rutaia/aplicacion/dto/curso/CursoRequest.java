@@ -8,7 +8,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
-@Schema(description = "Datos para registrar o actualizar un curso")
+@Schema(name = "CursoRequest", description = "Datos para registrar o actualizar un curso")
 public record CursoRequest(
 
 		@Schema(example = "Introducción a TypeScript", maxLength = 150)

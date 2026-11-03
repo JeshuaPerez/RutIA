@@ -12,7 +12,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import com.rutaia.aplicacion.dto.calificacion.CalificacionRequest;
 import com.rutaia.aplicacion.dto.calificacion.CalificacionResponse;
-import com.rutaia.aplicacion.servicio.impl.CalificacionServicioImpl;
+import com.rutaia.aplicacion.servicio.CalificacionServicio;
 import com.rutaia.configuracion.OpenApiConfiguracion.Etiquetas;
 import com.rutaia.presentacion.documentacion.EjemplosApi;
 import com.rutaia.presentacion.error.ErrorResponse;
@@ -32,9 +32,9 @@ import jakarta.validation.Valid;
 @Tag(name = Etiquetas.CALIFICACIONES)
 public class CalificacionControlador {
 
-	private final CalificacionServicioImpl calificacionServicio;
+	private final CalificacionServicio calificacionServicio;
 
-	public CalificacionControlador(CalificacionServicioImpl calificacionServicio) {
+	public CalificacionControlador(CalificacionServicio calificacionServicio) {
 		this.calificacionServicio = calificacionServicio;
 	}
 

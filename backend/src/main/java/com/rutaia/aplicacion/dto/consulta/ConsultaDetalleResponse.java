@@ -5,7 +5,6 @@ import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.rutaia.aplicacion.mapper.Formatos;
-import com.rutaia.dominio.Calificacion;
 import com.rutaia.dominio.EstadoConsulta;
 
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -48,20 +47,6 @@ public record ConsultaDetalleResponse(
 		@Schema(nullable = true, description = "null si la recomendación no tiene calificación o no hay recomendación")
 		CalificacionDetalle calificacion) {
 
-	public static ConsultaDetalleResponse desde(ConsultaResultadoResponse resultado, Calificacion calificacion) {
-		return new ConsultaDetalleResponse(
-				resultado.consultaId(),
-				resultado.estudianteId(),
-				resultado.pregunta(),
-				resultado.fecha(),
-				resultado.estado(),
-				resultado.respuesta(),
-				resultado.mensaje(),
-				resultado.recomendacionId(),
-				resultado.fuentes(),
-				calificacion == null ? null : CalificacionDetalle.desde(calificacion));
-	}
-
 	@Schema(name = "CalificacionDetalle", description = "Calificación de la recomendación de la consulta")
 	public record CalificacionDetalle(
 
@@ -74,12 +59,6 @@ public record ConsultaDetalleResponse(
 			@Schema(type = "string", example = "2026-11-02T23:10:05", description = "ISO-8601 sin zona, hora local")
 			@JsonFormat(pattern = Formatos.FECHA_HORA)
 			LocalDateTime fecha) {
-
-		static CalificacionDetalle desde(Calificacion calificacion) {
-			return new CalificacionDetalle(calificacion.getPuntuacion(), calificacion.getComentario(),
-					calificacion.getFecha());
-		}
-
 	}
 
 }

@@ -6,7 +6,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
-@Schema(description = "Calificación de una recomendación (RF 17)")
+@Schema(name = "CalificacionRequest", description = "Calificación de una recomendación (RF 17)")
 public record CalificacionRequest(
 
 		@Schema(example = "5", minimum = "1", maximum = "5", description = "Entero de 1 a 5; un decimal se rechaza")

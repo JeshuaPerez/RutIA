@@ -7,40 +7,42 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.rutaia.aplicacion.dto.calificacion.CalificacionRequest;
 import com.rutaia.aplicacion.dto.calificacion.CalificacionResponse;
-import com.rutaia.dominio.Calificacion;
-import com.rutaia.dominio.Recomendacion;
 import com.rutaia.aplicacion.excepcion.ConflictoException;
 import com.rutaia.aplicacion.excepcion.RecursoNoEncontradoException;
+import com.rutaia.aplicacion.mapper.CalificacionMapper;
+import com.rutaia.aplicacion.servicio.CalificacionServicio;
+import com.rutaia.aplicacion.servicio.RecomendacionServicio;
+import com.rutaia.dominio.Recomendacion;
 import com.rutaia.persistencia.CalificacionRepositorio;
-import com.rutaia.persistencia.RecomendacionRepositorio;
 
 /** E-13: una sola calificación por recomendación (RF 17). */
 @Service
-public class CalificacionServicioImpl {
+public class CalificacionServicioImpl implements CalificacionServicio {
 
 	private static final String RESTRICCION_CALIFICACION_UNICA = "uq_calificacion_recomendacion";
 
-	private final RecomendacionRepositorio recomendacionRepositorio;
+	private final RecomendacionServicio recomendacionServicio;
 	private final CalificacionRepositorio calificacionRepositorio;
 
-	public CalificacionServicioImpl(RecomendacionRepositorio recomendacionRepositorio,
+	public CalificacionServicioImpl(RecomendacionServicio recomendacionServicio,
 			CalificacionRepositorio calificacionRepositorio) {
-		this.recomendacionRepositorio = recomendacionRepositorio;
+		this.recomendacionServicio = recomendacionServicio;
 		this.calificacionRepositorio = calificacionRepositorio;
 	}
 
+	@Override
 	@Transactional
 	public CalificacionResponse calificar(Long recomendacionId, CalificacionRequest solicitud) {
-		Recomendacion recomendacion = recomendacionRepositorio.findById(recomendacionId)
+		Recomendacion recomendacion = recomendacionServicio.buscar(recomendacionId)
 				.orElseThrow(() -> new RecursoNoEncontradoException(
 						"No existe una recomendación con id " + recomendacionId));
 		if (calificacionRepositorio.existsByRecomendacionId(recomendacionId)) {
 			throw yaCalificada(recomendacionId);
 		}
-		Calificacion calificacion = new Calificacion(recomendacion, solicitud.puntuacion(), solicitud.comentario());
 		try {
 			// saveAndFlush para que una calificación concurrente de la misma recomendación falle aquí y no al confirmar.
-			return CalificacionResponse.desde(calificacionRepositorio.saveAndFlush(calificacion));
+			return CalificacionMapper.aResponse(
+					calificacionRepositorio.saveAndFlush(CalificacionMapper.aEntidad(recomendacion, solicitud)));
 		}
 		catch (DataIntegrityViolationException ex) {
 			if (esViolacionDeCalificacionUnica(ex)) {

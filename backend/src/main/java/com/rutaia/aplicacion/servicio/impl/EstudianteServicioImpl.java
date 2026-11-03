@@ -9,13 +9,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.rutaia.aplicacion.dto.estudiante.EstudianteRequest;
 import com.rutaia.aplicacion.dto.estudiante.EstudianteResponse;
-import com.rutaia.dominio.Estudiante;
 import com.rutaia.aplicacion.excepcion.ConflictoException;
 import com.rutaia.aplicacion.excepcion.RecursoNoEncontradoException;
+import com.rutaia.aplicacion.mapper.EstudianteMapper;
+import com.rutaia.aplicacion.servicio.EstudianteServicio;
 import com.rutaia.persistencia.EstudianteRepositorio;
 
 @Service
-public class EstudianteServicioImpl {
+public class EstudianteServicioImpl implements EstudianteServicio {
 
 	private static final String RESTRICCION_CORREO_UNICO = "uq_estudiante_correo";
 
@@ -25,20 +26,16 @@ public class EstudianteServicioImpl {
 		this.estudianteRepositorio = estudianteRepositorio;
 	}
 
+	@Override
 	@Transactional
 	public EstudianteResponse registrar(EstudianteRequest solicitud) {
 		// El DTO ya entrega el correo con trim y en minúsculas.
 		if (estudianteRepositorio.existsByCorreo(solicitud.correo())) {
 			throw correoDuplicado(solicitud.correo());
 		}
-		Estudiante estudiante = new Estudiante(
-				solicitud.nombreCompleto(),
-				solicitud.correo(),
-				solicitud.nivelExperiencia(),
-				solicitud.areaInteres());
 		try {
 			// saveAndFlush para que una alta concurrente con el mismo correo falle aquí y no al confirmar.
-			return EstudianteResponse.desde(estudianteRepositorio.saveAndFlush(estudiante));
+			return EstudianteMapper.aResponse(estudianteRepositorio.saveAndFlush(EstudianteMapper.aEntidad(solicitud)));
 		}
 		catch (DataIntegrityViolationException ex) {
 			if (esViolacionDeCorreoUnico(ex)) {
@@ -48,17 +45,19 @@ public class EstudianteServicioImpl {
 		}
 	}
 
+	@Override
 	@Transactional(readOnly = true)
 	public List<EstudianteResponse> listar() {
 		return estudianteRepositorio.findAllByOrderByIdAsc().stream()
-				.map(EstudianteResponse::desde)
+				.map(EstudianteMapper::aResponse)
 				.toList();
 	}
 
+	@Override
 	@Transactional(readOnly = true)
 	public EstudianteResponse consultar(Long id) {
 		return estudianteRepositorio.findById(id)
-				.map(EstudianteResponse::desde)
+				.map(EstudianteMapper::aResponse)
 				.orElseThrow(() -> new RecursoNoEncontradoException("No existe un estudiante con id " + id));
 	}
 

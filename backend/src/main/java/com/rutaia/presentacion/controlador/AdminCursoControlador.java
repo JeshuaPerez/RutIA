@@ -16,7 +16,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import com.rutaia.aplicacion.dto.curso.CursoAdminResponse;
 import com.rutaia.aplicacion.dto.curso.CursoRequest;
-import com.rutaia.aplicacion.servicio.impl.CursoServicioImpl;
+import com.rutaia.aplicacion.servicio.AdministracionCursoServicio;
 import com.rutaia.configuracion.OpenApiConfiguracion.Etiquetas;
 import com.rutaia.presentacion.documentacion.EjemplosApi;
 import com.rutaia.presentacion.error.ErrorResponse;
@@ -37,10 +37,10 @@ import jakarta.validation.Valid;
 @Tag(name = Etiquetas.ADMINISTRACION)
 public class AdminCursoControlador {
 
-	private final CursoServicioImpl cursoServicio;
+	private final AdministracionCursoServicio administracionCursoServicio;
 
-	public AdminCursoControlador(CursoServicioImpl cursoServicio) {
-		this.cursoServicio = cursoServicio;
+	public AdminCursoControlador(AdministracionCursoServicio administracionCursoServicio) {
+		this.administracionCursoServicio = administracionCursoServicio;
 	}
 
 	@PostMapping
@@ -63,7 +63,7 @@ public class AdminCursoControlador {
 			content = @Content(schema = @Schema(implementation = ErrorResponse.class),
 					examples = @ExampleObject(value = EjemplosApi.ERROR_INTERNO)))
 	public ResponseEntity<CursoAdminResponse> registrar(@Valid @RequestBody CursoRequest solicitud) {
-		CursoAdminResponse creado = cursoServicio.registrar(solicitud);
+		CursoAdminResponse creado = administracionCursoServicio.registrar(solicitud);
 		URI ubicacion = ServletUriComponentsBuilder.fromCurrentRequest()
 				.path("/{id}")
 				.buildAndExpand(creado.id())
@@ -81,7 +81,7 @@ public class AdminCursoControlador {
 			content = @Content(schema = @Schema(implementation = ErrorResponse.class),
 					examples = @ExampleObject(value = EjemplosApi.ERROR_INTERNO)))
 	public List<CursoAdminResponse> listar() {
-		return cursoServicio.listarTodos();
+		return administracionCursoServicio.listarTodos();
 	}
 
 	@GetMapping("/{id}")
@@ -100,7 +100,7 @@ public class AdminCursoControlador {
 					examples = @ExampleObject(value = EjemplosApi.ERROR_INTERNO)))
 	public CursoAdminResponse consultar(@Parameter(description = "Id del curso", example = "1")
 			@PathVariable Long id) {
-		return cursoServicio.consultar(id);
+		return administracionCursoServicio.consultar(id);
 	}
 
 	@PutMapping("/{id}")
@@ -124,7 +124,7 @@ public class AdminCursoControlador {
 					examples = @ExampleObject(value = EjemplosApi.ERROR_INTERNO)))
 	public CursoAdminResponse actualizar(@Parameter(description = "Id del curso", example = "1")
 			@PathVariable Long id, @Valid @RequestBody CursoRequest solicitud) {
-		return cursoServicio.actualizar(id, solicitud);
+		return administracionCursoServicio.actualizar(id, solicitud);
 	}
 
 	@PatchMapping("/{id}/desactivar")
@@ -144,7 +144,7 @@ public class AdminCursoControlador {
 					examples = @ExampleObject(value = EjemplosApi.ERROR_INTERNO)))
 	public CursoAdminResponse desactivar(@Parameter(description = "Id del curso", example = "1")
 			@PathVariable Long id) {
-		return cursoServicio.desactivar(id);
+		return administracionCursoServicio.desactivar(id);
 	}
 
 }

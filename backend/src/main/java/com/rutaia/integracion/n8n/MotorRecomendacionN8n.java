@@ -6,6 +6,10 @@ import java.net.http.HttpConnectTimeoutException;
 import java.net.http.HttpTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatusCode;
@@ -16,19 +20,26 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
 import com.rutaia.aplicacion.puerto.FallaMotorException;
+import com.rutaia.aplicacion.puerto.MotorRecomendacion;
+import com.rutaia.aplicacion.puerto.ResultadoRecomendacion;
+import com.rutaia.aplicacion.puerto.SolicitudRecomendacion;
+import com.rutaia.dominio.EstadoConsulta;
 
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * Cliente del flujo W-1 «RutaIA - Consulta RAG» (C8). Spring Boot es el único que lo llama (RF 06 y RF 08). No
- * reintenta: cualquier falla de transporte o de HTTP se informa con {@link FallaMotorException}.
+ * Adaptador del flujo W-1 «RutaIA - Consulta RAG» (C8) al puerto {@link MotorRecomendacion} (patrón Adapter). Es la
+ * única clase que conoce n8n: la URL del webhook, su JSON, sus códigos HTTP y los timeouts. Spring Boot es el único
+ * que llama a W-1 (RF 06 y RF 08). No reintenta: toda falla de transporte, de HTTP o de contenido se informa con
+ * {@link FallaMotorException}.
  */
 @Component
-public class MotorRecomendacionN8n {
+public class MotorRecomendacionN8n implements MotorRecomendacion {
 
 	private static final Duration TIMEOUT_CONEXION = Duration.ofSeconds(5);
 	private static final int MAX_CUERPO_EN_MOTIVO = 300;
+	private static final int MAX_FUENTES = 5;
 
 	private final RestClient restClient;
 	private final JsonMapper jsonMapper;
@@ -51,12 +62,19 @@ public class MotorRecomendacionN8n {
 		this.jsonMapper = jsonMapper;
 	}
 
+	@Override
+	public ResultadoRecomendacion recomendar(SolicitudRecomendacion solicitud) {
+		N8nPeticion peticion = new N8nPeticion(solicitud.consultaId(), solicitud.pregunta(),
+				solicitud.nivelExperiencia(), solicitud.areaInteres());
+		return traducir(consultar(peticion), solicitud.consultaId());
+	}
+
 	/**
-	 * Envía la consulta a W-1 y devuelve su cuerpo 2xx sin validar el contenido (eso lo hace el servicio).
+	 * Envía la consulta a W-1 y devuelve su cuerpo 2xx sin validar el contenido.
 	 *
 	 * @throws FallaMotorException si n8n no responde, responde no-2xx o el cuerpo no es un JSON legible
 	 */
-	public N8nRespuesta consultar(N8nPeticion peticion) {
+	private N8nRespuesta consultar(N8nPeticion peticion) {
 		try {
 			return restClient.post()
 					.contentType(MediaType.APPLICATION_JSON)
@@ -80,6 +98,52 @@ public class MotorRecomendacionN8n {
 		catch (RestClientException ex) {
 			throw new FallaMotorException(describirFallaDeConexion(ex), ex);
 		}
+	}
+
+	/**
+	 * Reglas de C8 que no dependen de la BD. Una respuesta válida trae el mismo consultaId y estado Respondida o Sin
+	 * resultados; si es Respondida, además una respuesta no vacía y de 1 a 5 fuentes sin cursoId repetido y con
+	 * similitud entre 0 y 1. Que cada curso exista y esté activo lo comprueba la aplicación al guardar.
+	 */
+	private static ResultadoRecomendacion traducir(N8nRespuesta respuesta, Long consultaId) {
+		if (!consultaId.equals(respuesta.consultaId())) {
+			throw invalida("n8n devolvió consultaId " + respuesta.consultaId() + ", distinto del enviado " + consultaId);
+		}
+		String estado = respuesta.estado();
+		if (EstadoConsulta.ERROR.getTexto().equals(estado)) {
+			throw invalida("n8n devolvió estado Error: " + respuesta.error());
+		}
+		if (EstadoConsulta.SIN_RESULTADOS.getTexto().equals(estado)) {
+			return ResultadoRecomendacion.sinResultados();
+		}
+		if (!EstadoConsulta.RESPONDIDA.getTexto().equals(estado)) {
+			throw invalida("n8n devolvió un estado inválido: " + estado);
+		}
+		if (respuesta.respuesta() == null || respuesta.respuesta().isBlank()) {
+			throw invalida("n8n devolvió Respondida con la respuesta vacía");
+		}
+		int cantidad = respuesta.fuentes() == null ? 0 : respuesta.fuentes().size();
+		if (cantidad < 1 || cantidad > MAX_FUENTES) {
+			throw invalida("n8n devolvió Respondida con " + cantidad + " fuentes; se esperan de 1 a " + MAX_FUENTES);
+		}
+		Set<Long> cursoIds = new HashSet<>();
+		for (N8nRespuesta.Fuente fuente : respuesta.fuentes()) {
+			if (fuente == null || fuente.cursoId() == null) {
+				throw invalida("n8n devolvió una fuente sin cursoId");
+			}
+			if (!cursoIds.add(fuente.cursoId())) {
+				throw invalida("n8n devolvió el cursoId " + fuente.cursoId() + " repetido en las fuentes");
+			}
+			Double similitud = fuente.similitud();
+			if (similitud == null || similitud.isNaN() || similitud < 0 || similitud > 1) {
+				throw invalida("n8n devolvió la similitud " + Objects.toString(similitud) + " para el cursoId "
+						+ fuente.cursoId() + "; debe estar entre 0 y 1");
+			}
+		}
+		List<ResultadoRecomendacion.Fuente> fuentes = respuesta.fuentes().stream()
+				.map(fuente -> new ResultadoRecomendacion.Fuente(fuente.cursoId(), fuente.similitud()))
+				.toList();
+		return ResultadoRecomendacion.respondida(respuesta.respuesta(), fuentes);
 	}
 
 	/** null si el cuerpo está vacío o no es un JSON con la forma de C8. */
@@ -108,6 +172,10 @@ public class MotorRecomendacionN8n {
 			}
 		}
 		return "n8n no respondió: " + ex.getClass().getSimpleName() + ": " + ex.getMessage();
+	}
+
+	private static FallaMotorException invalida(String motivo) {
+		return new FallaMotorException(motivo);
 	}
 
 	private static String recortar(String cuerpo) {

@@ -1,6 +1,5 @@
 package com.rutaia.aplicacion.dto.curso;
 
-import com.rutaia.dominio.Curso;
 import com.rutaia.dominio.NivelCurso;
 
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -25,15 +24,4 @@ public record CursoCatalogoResponse(
 
 		@Schema(example = "40")
 		Integer duracionHoras) {
-
-	public static CursoCatalogoResponse desde(Curso curso) {
-		return new CursoCatalogoResponse(
-				curso.getId(),
-				curso.getNombre(),
-				curso.getDescripcion(),
-				curso.getCategoria(),
-				curso.getNivel(),
-				curso.getDuracionHoras());
-	}
-
 }

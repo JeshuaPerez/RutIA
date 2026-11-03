@@ -5,7 +5,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.rutaia.aplicacion.dto.estadistica.EstadisticasResponse;
-import com.rutaia.aplicacion.servicio.impl.EstadisticasServicioImpl;
+import com.rutaia.aplicacion.servicio.EstadisticasServicio;
 import com.rutaia.configuracion.OpenApiConfiguracion.Etiquetas;
 import com.rutaia.presentacion.documentacion.EjemplosApi;
 import com.rutaia.presentacion.error.ErrorResponse;
@@ -22,9 +22,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 @Tag(name = Etiquetas.ESTADISTICAS)
 public class EstadisticasControlador {
 
-	private final EstadisticasServicioImpl estadisticasServicio;
+	private final EstadisticasServicio estadisticasServicio;
 
-	public EstadisticasControlador(EstadisticasServicioImpl estadisticasServicio) {
+	public EstadisticasControlador(EstadisticasServicio estadisticasServicio) {
 		this.estadisticasServicio = estadisticasServicio;
 	}
 

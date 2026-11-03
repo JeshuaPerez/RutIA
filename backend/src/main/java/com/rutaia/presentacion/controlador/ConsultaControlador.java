@@ -14,8 +14,8 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import com.rutaia.aplicacion.dto.consulta.ConsultaDetalleResponse;
 import com.rutaia.aplicacion.dto.consulta.ConsultaRequest;
 import com.rutaia.aplicacion.dto.consulta.ConsultaResultadoResponse;
-import com.rutaia.aplicacion.servicio.impl.ConsultaServicioImpl;
-import com.rutaia.aplicacion.servicio.impl.HistorialServicioImpl;
+import com.rutaia.aplicacion.servicio.ConsultaServicio;
+import com.rutaia.aplicacion.servicio.HistorialServicio;
 import com.rutaia.configuracion.OpenApiConfiguracion.Etiquetas;
 import com.rutaia.presentacion.documentacion.EjemplosApi;
 import com.rutaia.presentacion.error.ErrorResponse;
@@ -35,10 +35,10 @@ import jakarta.validation.Valid;
 @RequestMapping("/api/consultas")
 public class ConsultaControlador {
 
-	private final ConsultaServicioImpl consultaServicio;
-	private final HistorialServicioImpl historialServicio;
+	private final ConsultaServicio consultaServicio;
+	private final HistorialServicio historialServicio;
 
-	public ConsultaControlador(ConsultaServicioImpl consultaServicio, HistorialServicioImpl historialServicio) {
+	public ConsultaControlador(ConsultaServicio consultaServicio, HistorialServicio historialServicio) {
 		this.consultaServicio = consultaServicio;
 		this.historialServicio = historialServicio;
 	}

@@ -9,7 +9,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
  * fuera de C5 no impida leer el resto y se trate como respuesta inválida al validarla.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-public record N8nRespuesta(
+record N8nRespuesta(
 		Long consultaId,
 		String pregunta,
 		String estado,
@@ -18,7 +18,7 @@ public record N8nRespuesta(
 		String error) {
 
 	@JsonIgnoreProperties(ignoreUnknown = true)
-	public record Fuente(
+	record Fuente(
 			Long cursoId,
 			String nombre,
 			String descripcion,

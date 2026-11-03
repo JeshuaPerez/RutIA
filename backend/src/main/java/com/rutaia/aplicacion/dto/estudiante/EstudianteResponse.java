@@ -4,7 +4,6 @@ import java.time.LocalDateTime;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.rutaia.aplicacion.mapper.Formatos;
-import com.rutaia.dominio.Estudiante;
 import com.rutaia.dominio.NivelExperiencia;
 
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -30,15 +29,4 @@ public record EstudianteResponse(
 		@Schema(type = "string", example = "2026-11-02T17:05:12", description = "ISO-8601 sin zona, hora local")
 		@JsonFormat(pattern = Formatos.FECHA_HORA)
 		LocalDateTime fechaRegistro) {
-
-	public static EstudianteResponse desde(Estudiante estudiante) {
-		return new EstudianteResponse(
-				estudiante.getId(),
-				estudiante.getNombreCompleto(),
-				estudiante.getCorreo(),
-				estudiante.getNivelExperiencia(),
-				estudiante.getAreaInteres(),
-				estudiante.getFechaRegistro());
-	}
-
 }

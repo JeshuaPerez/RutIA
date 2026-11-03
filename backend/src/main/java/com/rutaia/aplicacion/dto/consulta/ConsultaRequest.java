@@ -6,7 +6,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
-@Schema(description = "Necesidad de formación escrita por el estudiante")
+@Schema(name = "ConsultaRequest", description = "Necesidad de formación escrita por el estudiante")
 public record ConsultaRequest(
 
 		@Schema(example = "1", minimum = "1")

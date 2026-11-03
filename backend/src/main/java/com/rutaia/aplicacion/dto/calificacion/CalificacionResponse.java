@@ -4,7 +4,6 @@ import java.time.LocalDateTime;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.rutaia.aplicacion.mapper.Formatos;
-import com.rutaia.dominio.Calificacion;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -23,13 +22,4 @@ public record CalificacionResponse(
 		@Schema(type = "string", example = "2026-11-02T23:10:05", description = "ISO-8601 sin zona, hora local")
 		@JsonFormat(pattern = Formatos.FECHA_HORA)
 		LocalDateTime fecha) {
-
-	public static CalificacionResponse desde(Calificacion calificacion) {
-		return new CalificacionResponse(
-				calificacion.getRecomendacion().getId(),
-				calificacion.getPuntuacion(),
-				calificacion.getComentario(),
-				calificacion.getFecha());
-	}
-
 }

@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.rutaia.aplicacion.dto.consulta.HistorialItemResponse;
-import com.rutaia.aplicacion.servicio.impl.HistorialServicioImpl;
+import com.rutaia.aplicacion.servicio.HistorialServicio;
 import com.rutaia.configuracion.OpenApiConfiguracion.Etiquetas;
 import com.rutaia.presentacion.documentacion.EjemplosApi;
 import com.rutaia.presentacion.error.ErrorResponse;
@@ -27,9 +27,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 @Tag(name = Etiquetas.HISTORIAL)
 public class HistorialControlador {
 
-	private final HistorialServicioImpl historialServicio;
+	private final HistorialServicio historialServicio;
 
-	public HistorialControlador(HistorialServicioImpl historialServicio) {
+	public HistorialControlador(HistorialServicio historialServicio) {
 		this.historialServicio = historialServicio;
 	}
 

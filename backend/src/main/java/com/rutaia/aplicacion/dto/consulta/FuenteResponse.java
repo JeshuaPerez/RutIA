@@ -1,8 +1,6 @@
 package com.rutaia.aplicacion.dto.consulta;
 
-import com.rutaia.dominio.Curso;
 import com.rutaia.dominio.NivelCurso;
-import com.rutaia.dominio.RecomendacionFuente;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -30,17 +28,4 @@ public record FuenteResponse(
 		@Schema(example = "0.6421", minimum = "0", maximum = "1",
 				description = "Similitud de Qdrant entre la pregunta y el curso, con 4 decimales")
 		Double similitud) {
-
-	public static FuenteResponse desde(RecomendacionFuente fuente) {
-		Curso curso = fuente.getCurso();
-		return new FuenteResponse(
-				curso.getId(),
-				curso.getNombre(),
-				curso.getDescripcion(),
-				curso.getCategoria(),
-				curso.getNivel(),
-				curso.getDuracionHoras(),
-				fuente.getSimilitud());
-	}
-
 }

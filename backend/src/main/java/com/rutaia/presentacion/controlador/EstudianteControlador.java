@@ -14,7 +14,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import com.rutaia.aplicacion.dto.estudiante.EstudianteRequest;
 import com.rutaia.aplicacion.dto.estudiante.EstudianteResponse;
-import com.rutaia.aplicacion.servicio.impl.EstudianteServicioImpl;
+import com.rutaia.aplicacion.servicio.EstudianteServicio;
 import com.rutaia.configuracion.OpenApiConfiguracion.Etiquetas;
 import com.rutaia.presentacion.documentacion.EjemplosApi;
 import com.rutaia.presentacion.error.ErrorResponse;
@@ -35,9 +35,9 @@ import jakarta.validation.Valid;
 @Tag(name = Etiquetas.ESTUDIANTES)
 public class EstudianteControlador {
 
-	private final EstudianteServicioImpl estudianteServicio;
+	private final EstudianteServicio estudianteServicio;
 
-	public EstudianteControlador(EstudianteServicioImpl estudianteServicio) {
+	public EstudianteControlador(EstudianteServicio estudianteServicio) {
 		this.estudianteServicio = estudianteServicio;
 	}
 

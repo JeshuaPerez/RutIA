@@ -1,6 +1,5 @@
 package com.rutaia.aplicacion.dto.curso;
 
-import com.rutaia.dominio.Curso;
 import com.rutaia.dominio.NivelCurso;
 
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -28,16 +27,4 @@ public record CursoAdminResponse(
 
 		@Schema(example = "true")
 		Boolean activo) {
-
-	public static CursoAdminResponse desde(Curso curso) {
-		return new CursoAdminResponse(
-				curso.getId(),
-				curso.getNombre(),
-				curso.getDescripcion(),
-				curso.getCategoria(),
-				curso.getNivel(),
-				curso.getDuracionHoras(),
-				curso.getActivo());
-	}
-
 }

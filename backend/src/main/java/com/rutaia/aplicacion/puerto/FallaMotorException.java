@@ -1,8 +1,9 @@
 package com.rutaia.aplicacion.puerto;
 
 /**
- * n8n no respondió (conexión rechazada o timeout), respondió no-2xx o con un cuerpo ilegible. El servicio la
- * convierte en el estado Error; el mensaje es el motivo técnico que va a detalle_error y a los logs.
+ * El motor no respondió (conexión rechazada o timeout), respondió con error o devolvió algo que no cumple el contrato
+ * de {@link MotorRecomendacion}. {@code ConsultaServicioImpl} la convierte en el estado Error; el mensaje es el motivo
+ * técnico que va a detalle_error y a los logs. Nunca llega al manejador global de excepciones.
  */
 public class FallaMotorException extends RuntimeException {
 
