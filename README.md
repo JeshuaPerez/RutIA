@@ -28,7 +28,7 @@ Repositorio: https://github.com/JeshuaPerez/RutIA
 | Base de datos relacional | PostgreSQL 17 (contenedor) |
 | Base de datos vectorial | Qdrant v1.20.0 (contenedor) |
 | Automatizaciones | n8n 2.45.7 (contenedor) |
-| IA | OpenRouter, capa gratuita: embeddings `nvidia/nemotron-3-embed-1b:free` (2048 dimensiones) y LLM `google/gemma-4-31b-it:free` |
+| IA | OpenRouter, capa gratuita: embeddings `nvidia/nemotron-3-embed-1b:free` (2048 dimensiones) y LLM `google/gemma-4-26b-a4b-it:free` (desde la Etapa 5; antes `google/gemma-4-31b-it:free`) |
 | Infraestructura | Docker Compose v2 ([docker-compose.yml](docker-compose.yml)) |
 
 Flujo: frontend → API Spring Boot → webhook de n8n → OpenRouter (embedding) → Qdrant (búsqueda) → OpenRouter (LLM) → API → frontend. PostgreSQL guarda el catálogo y las consultas.
@@ -143,7 +143,7 @@ curl -s -X PATCH "http://localhost:8080/api/admin/cursos/1/desactivar"
 
 | Error | Causa | Solución |
 |---|---|---|
-| OpenRouter 429 «… is temporarily rate-limited upstream» | El proveedor gratuito del modelo está saturado (afectó a `google/gemma-4-31b-it:free` el 2026-11-02) | Reintentar en otro horario; cada intento gasta 1 de las 50 solicitudes diarias |
+| OpenRouter 429 «… is temporarily rate-limited upstream» | El proveedor gratuito del modelo está saturado (afectó a `google/gemma-4-31b-it:free` y a `google/gemma-4-26b-a4b-it:free` el 2026-11-02) | Agregar una clave gratuita propia de Google AI Studio en OpenRouter (*Settings → Integrations → Google AI Studio*, sección *Prioritized*); sin ella, reintentar en otro horario (cada intento gasta solicitudes) |
 | OpenRouter 429 por cuota | Límite de la capa gratuita: 20 solicitudes/minuto y 50/día por cuenta | Esperar; evitar pruebas repetidas |
 | OpenRouter 404 en modelos `:free` | Privacidad de proveedores gratuitos no habilitada | Habilitarla en https://openrouter.ai/settings/privacy |
 | OpenRouter 402 | Saldo negativo en la cuenta | Revisar *Credits* |

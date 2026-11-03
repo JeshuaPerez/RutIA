@@ -7,7 +7,7 @@ RutaIA recomienda cursos existentes de un catálogo institucional a partir de un
 - **n8n** (contenedor) — orquesta los flujos: genera embeddings con OpenRouter, busca en Qdrant y consulta el LLM.
 - **Qdrant** (contenedor) — base vectorial con los embeddings de los cursos (2048 dimensiones).
 - **PostgreSQL 17** (contenedor) — base relacional `rutaia` con el catálogo y las consultas.
-- **OpenRouter** (externo, capa gratuita) — embeddings `nvidia/nemotron-3-embed-1b:free` y LLM `google/gemma-4-31b-it:free`. Solo n8n lo llama, con la credencial «RutaIA OpenRouter».
+- **OpenRouter** (externo, capa gratuita) — embeddings `nvidia/nemotron-3-embed-1b:free` y LLM `google/gemma-4-26b-a4b-it:free` (desde la Etapa 5; antes `google/gemma-4-31b-it:free`, ver `docs/n8n.md`). Solo n8n lo llama, con la credencial «RutaIA OpenRouter».
 
 ## Diagrama de componentes y puertos
 
@@ -58,7 +58,7 @@ sequenceDiagram
     OR-->>N: vector de 2048 números
     N->>Q: Búsqueda por similitud (con umbral calibrado)
     Q-->>N: cursos candidatos
-    N->>OR: POST /chat/completions (gemma-4-31b-it:free, un mensaje user)
+    N->>OR: POST /chat/completions (gemma-4-26b-a4b-it:free, un mensaje user)
     OR-->>N: recomendación en texto
     N-->>API: Respuesta JSON
     API->>PG: Guarda el resultado

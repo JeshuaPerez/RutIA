@@ -198,7 +198,7 @@ curl.exe -s https://openrouter.ai/api/v1/embeddings -H "Authorization: Bearer $e
 $e = Get-Content "$env:TEMP\rutaia-emb.json" -Raw | ConvertFrom-Json
 if ($e.error) { $e.error } else { $e.data[0].embedding.Count }
 
-# 2) Chat con google/gemma-4-31b-it:free: debe imprimir texto
+# 2) Chat con google/gemma-4-26b-a4b-it:free: debe imprimir texto
 curl.exe -s https://openrouter.ai/api/v1/chat/completions -H "Authorization: Bearer $env:OPENROUTER_API_KEY" -H "Content-Type: application/json" --data-binary "@pruebas/n8n/openrouter-chat.json" -o "$env:TEMP\rutaia-chat.json"
 $c = Get-Content "$env:TEMP\rutaia-chat.json" -Raw -Encoding UTF8 | ConvertFrom-Json
 if ($c.error) { $c.error } else { $c.choices[0].message.content }
@@ -216,7 +216,7 @@ echo "Largo: ${#OPENROUTER_API_KEY} · prefijo: ${OPENROUTER_API_KEY:0:9}"   # d
 curl -s https://openrouter.ai/api/v1/embeddings -H "Authorization: Bearer $OPENROUTER_API_KEY" -H "Content-Type: application/json" --data-binary "@pruebas/n8n/openrouter-embeddings-query.json" \
   | python3 -c 'import sys,json,math; r=json.load(sys.stdin); v=r["data"][0]["embedding"] if "data" in r else None; print(r.get("error") if v is None else (len(v), all(math.isfinite(x) for x in v)))'
 
-# 2) Chat con google/gemma-4-31b-it:free: debe imprimir texto
+# 2) Chat con google/gemma-4-26b-a4b-it:free: debe imprimir texto
 curl -s https://openrouter.ai/api/v1/chat/completions -H "Authorization: Bearer $OPENROUTER_API_KEY" -H "Content-Type: application/json" --data-binary "@pruebas/n8n/openrouter-chat.json" \
   | python3 -c 'import sys,json; r=json.load(sys.stdin); print(r.get("error") or r["choices"][0]["message"]["content"])'
 
@@ -316,7 +316,7 @@ docker compose exec n8n wget -qO- http://host.docker.internal:8080/
 | En PowerShell `curl -s ...` falla con «No se encuentra ningún parámetro...» | `curl` es un alias de `Invoke-WebRequest` | Usa `curl.exe`. |
 | OpenRouter responde **401** `Missing Authentication header` o **503** `CLERK_OAUTH_ISSUER is not configured` | Lo que se pegó no es una API key (por ejemplo, un token de sesión del navegador o una *Management key*) | Crea una clave en https://openrouter.ai/settings/keys → *Create API Key* y cópiala al crearla: empieza por `sk-or-v1-` y tiene unos 73 caracteres. Corrige también el Value de la credencial de n8n (`Bearer sk-or-v1-…`). |
 | OpenRouter responde **429** | Cuota agotada (20/min o 50/día por cuenta) | Espera un minuto o al día siguiente (UTC). Evita repetir pruebas innecesarias. |
-| OpenRouter responde **429** `Provider returned error` · *«… is temporarily rate-limited upstream»* | El proveedor gratuito del modelo está saturado para todos los usuarios (no es tu cuota) | Reintenta cada 2 a 10 minutos; cada intento gasta 1 solicitud. Suele pasar en horas pico con `google/gemma-4-31b-it:free`. |
+| OpenRouter responde **429** `Provider returned error` · *«… is temporarily rate-limited upstream»* | El proveedor gratuito del modelo está saturado para todos los usuarios (no es tu cuota) | Agrega una clave gratuita propia de Google AI Studio (https://aistudio.google.com/apikey) en https://openrouter.ai/settings/integrations → *Google AI Studio* → sección **Prioritized**, dejando *Use OpenRouter's Google AI Studio capacity*; así los modelos gemma `:free` usan tus límites y no los compartidos. Nunca pegues la clave en el repositorio. Sin ella, reintenta en otro horario (cada intento gasta solicitudes). Pasó el 2026-11-02 con `google/gemma-4-31b-it:free` y `google/gemma-4-26b-a4b-it:free`. |
 | OpenRouter responde **404** en un modelo `:free` | Privacidad no habilitada para proveedores gratuitos | Habilítala en https://openrouter.ai/settings/privacy (sección 4). |
 | OpenRouter responde **402** | Saldo negativo en la cuenta | Revisa *Credits* en OpenRouter; los modelos `:free` exigen saldo ≥ 0. |
 | OpenRouter responde **400** en embeddings | Falta `input_type` (el modelo es asimétrico) | Envía `"input_type":"query"` o `"passage"`. |
