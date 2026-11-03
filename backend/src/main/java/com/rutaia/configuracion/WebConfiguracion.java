@@ -7,8 +7,8 @@ import org.springframework.format.FormatterRegistry;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-import com.rutaia.entidad.NivelCurso;
-import com.rutaia.entidad.NivelExperiencia;
+import com.rutaia.dominio.NivelCurso;
+import com.rutaia.dominio.NivelExperiencia;
 
 @Configuration
 public class WebConfiguracion implements WebMvcConfigurer {
