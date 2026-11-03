@@ -1,0 +1,182 @@
+Etapa 8 · 2026-11-02, 23:30–23:55 (hora local UTC−6) · Windows 11 Home 10.0.26200 · JDK 21.0.13 (Temurin)
+Frontend: jwebserver -p 5500 -d "C:\Users\jeshu\Documents\Inteligencia artificial 2\frontend" (http://localhost:5500)
+API: cd backend; .\gradlew.bat bootRun (puerto 8080, código de la Etapa 7). n8n 2.45.7 con W-1 publicado.
+Navegadores: panel de navegador de Claude (Chromium, 1024×768) para los clics y el teclado; Microsoft Edge sin interfaz
+controlado por DevTools Protocol (eventos reales de ratón y teclado: Input.dispatchMouseEvent e Input.insertText) para el
+recorrido completo y las capturas de página completa a 1280 y 360 px de ancho CSS (factor de escala 1; a 360 px, modo móvil).
+Los <select> nativos se eligen asignando la opción y disparando change, como hace el navegador.
+
+## Servidor estático (jwebserver)
+> curl -s -I http://localhost:5500/ ; /js/app.js ; /css/estilos.css
+HTTP/1.1 200 OK · Content-type: text/html
+HTTP/1.1 200 OK · Content-type: text/javascript
+HTTP/1.1 200 OK · Content-type: text/css
+Serving C:\Users\jeshu\Documents\Inteligencia artificial 2\frontend and subdirectories on 127.0.0.1 port 5500
+
+## Comprobaciones estáticas (desde frontend/)
+> grep -rniE "5678|6333|openrouter|webhook" .
+(ninguna)
+> grep -rnE "innerHTML|outerHTML|insertAdjacentHTML|document\.write" .
+(ninguna)
+> grep -rn "fetch(" js
+js/api.js:27:    respuesta = await fetch(API_BASE_URL + ruta, opciones);
+> grep -rnoE "https?://[^\"' )]+" .
+./css/estilos.css:447:http://www.w3.org/2000/svg   (espacio de nombres de un SVG en línea; no es una petición)
+./index.html:9:http://www.w3.org/2000/svg          (ídem, ícono de la pestaña)
+./js/config.js:2:http://localhost:8080/api
+./js/dom.js:3:http://www.w3.org/2000/svg           (ídem, createElementNS)
+> rutas de import y de recursos comparadas con los nombres reales de los archivos (mayúsculas incluidas)
+OK css/estilos.css · OK js/api.js · OK js/app.js · OK js/calificacion.js · OK js/catalogo.js · OK js/componentes.js
+OK js/config.js · OK js/consulta.js · OK js/dom.js · OK js/estudiante.js · OK js/formulario.js · OK js/historial.js
+OK js/pestanas.js · OK js/registro.js · OK js/resultado.js
+> find . -type f | grep -E "[A-Z]"
+(todos en minúsculas)
+
+## E8-sin-conexión · API detenida (proceso del 8080 detenido antes de arrancar la Etapa 7)
+Edge: se guarda rutaia.estudianteId = 1 y se recarga; se escribe una pregunta y se pulsa «Trazar mi ruta».
+aviso: No se pudo conectar con el servidor. No se pudo verificar el estudiante guardado (id 1).
+catálogo: No se pudo conectar con el servidor
+chip: Estudiante activo · id 1 | Estudiante 1
+guardado: 1                      (sin conexión no se olvida el estudiante; solo un 404 lo borra)
+consulta: No se pudo conectar con el servidor
+Consola del navegador (solo los avisos de red del propio navegador; ningún error de JavaScript):
+[network.error] Failed to load resource: net::ERR_CONNECTION_REFUSED http://localhost:8080/api/cursos
+[network.error] Failed to load resource: net::ERR_CONNECTION_REFUSED http://localhost:8080/api/estudiantes/1
+[network.error] Failed to load resource: net::ERR_CONNECTION_REFUSED http://localhost:8080/api/consultas
+[captura] etapa8-1280-09-sin-conexion.png 1280x934 desborde-horizontal=0
+[captura] etapa8-360-09-sin-conexion.png 360x1124 desborde-horizontal=0
+
+## E8-registro · errores de E-01 (panel de navegador, clics reales)
+1. «Registrarme» con el formulario vacío → 400: bajo cada campo «Es obligatorio.» (nombre, correo, nivel y área),
+   alerta «La solicitud contiene datos inválidos», foco en «Nombre completo».
+2. Nombre «Prueba Correo Duplicado», correo «  Valeria.Gomez@RutaIA.test », nivel Intermedio, área «Desarrollo web» → 409:
+   bajo el correo «Ya está registrado.», alerta «El correo valeria.gomez@rutaia.test ya está registrado».
+3. Correo «ana@» → 400: bajo el correo «Debe ser un correo válido.», alerta «La solicitud contiene datos inválidos».
+Ninguno creó filas (el estudiante siguiente fue el 11).
+
+## E8-elegir, historial y detalle con datos existentes (sin E-11)
+Panel: elegir «Valeria Gómez Rojas» (E-02) → chip «Estudiante activo · id 1 / Valeria Gómez Rojas» → Historial:
+«1 consulta, de la más reciente a la más antigua.», fecha «2 de noviembre de 2026 a las 10:34 p. m.», Respondida,
+resumen con su salto de línea, 4 cursos → «Ver detalle»: consulta 2, recomendación en el bloque oscuro, 4 fuentes
+(0.593, 0.384, 0.375, 0.364) y «Tu calificación» 5 de 5 «La ruta me sirvió para saber por dónde empezar.»
+Edge, estudiante 7:
+historial: 2 consultas, de la más reciente a la más antigua.
+detalle Error: No fue posible generar la recomendación en este momento. Intenta de nuevo más tarde.
+foco tras volver: Ver detalle
+calificación: Tu calificación ★★★★☆ 4 de 5 (comentario de 500 caracteres de la Etapa 7)
+
+## E8-estudiante guardado inexistente y pregunta vacía (panel de navegador)
+1. localStorage rutaia.estudianteId = 999999 y recarga → E-03 404 →
+   localStorage: null | aviso: «El estudiante guardado (id 999999) ya no existe. Regístrate o elige un estudiante existente.» |
+   chip: «Sin estudiante activo / Regístrate o elige tu perfil» | Consultar e Historial muestran «Para consultar (ver un
+   historial) necesitas un estudiante activo…» con «Ir a Registro»; el formulario de consulta queda oculto.
+2. Con la estudiante 11 activa, pregunta «    » (solo espacios) y clic en «Trazar mi ruta» →
+   error de campo «Escribe tu necesidad antes de enviarla.», aria-invalid="true", foco en la pregunta, sin animación de carga
+   y 0 peticiones a /api/consultas (performance.getEntriesByType('resource')).
+
+## E8-catálogo y teclado (panel de navegador)
+Filtros Categoría = «Desarrollo web», Nivel = «Básico» → «1 curso activo · Desarrollo web · Básico» (Fundamentos de HTML y CSS).
+Pestañas: clic en Catálogo, ArrowRight → foco y selección en «Consultar» (panel visible); End → «Historial»
+(outline solid rgb(15, 118, 110)); Home → «Registro»; Tab → foco en «Nombre completo».
+
+## E8-flujo, tramo 1 (Edge): registro → catálogo filtrado → consulta temática → resultado
+registro: Te registraste, Mariana López Ortega. Tu id es 11 y ya eres el estudiante activo. | Ir a Consultar
+chip: Estudiante activo · id 11 / Mariana López Ortega | localStorage: 11
+catálogo sin filtros: 28 cursos activos | categorías: Análisis de datos, Automatización, Bases de datos, Desarrollo web, Herramientas tecnológicas, Inteligencia artificial, Programación
+catálogo filtrado: 1 curso activo · Análisis de datos · Básico | Estadística aplicada al análisis de datos
+en espera: botón deshabilitado = true | texto: Trazando tu ruta…
+E-11 respondió en 7.5 s; botón deshabilitado = false
+estado: Respondida | meta: Consulta 6 · 2 de noviembre de 2026 a las 11:47 p. m.
+fuentes: Visualización de datos y dashboards con Power BI [Categoría: Análisis de datos; Nivel: Intermedio; Duración: 30 horas] 0.532 | Análisis de datos con Python y pandas [Categoría: Análisis de datos; Nivel: Intermedio; Duración: 40 horas] 0.445 | Consultas SQL para análisis de datos [Categoría: Bases de datos; Nivel: Básico; Duración: 30 horas] 0.434 | Estadística aplicada al análisis de datos [Categoría: Análisis de datos; Nivel: Básico; Duración: 30 horas] 0.386
+recomendación (inicio): Hola. Como orientador de RutaIA, he analizado tu interés en el análisis de datos y la creación de dashboards. Dado que eres principiante, te recomiendo seguir e
+saltos de línea en la respuesta: 6   (se muestran como saltos de línea en el bloque oscuro)
+[captura] etapa8-1280-01-registro.png 1280x1000 desborde-horizontal=0
+[captura] etapa8-360-01-registro.png 360x1404 desborde-horizontal=0
+[captura] etapa8-1280-02-catalogo.png 1280x900 desborde-horizontal=0
+[captura] etapa8-360-02-catalogo.png 360x919 desborde-horizontal=0
+[captura] etapa8-1280-03-cargando.png 1280x1050 desborde-horizontal=0
+[captura] etapa8-360-03-cargando.png 360x1174 desborde-horizontal=0
+[captura] etapa8-1280-04-resultado.png 1280x3102 desborde-horizontal=0
+[captura] etapa8-360-04-resultado.png 360x4077 desborde-horizontal=0
+FALLÓ: Tiempo agotado esperando: document.querySelector('#consulta-resultado .estrellas-lectura') || document.querySelector('#consulta-resultado .calificacion .alerta')?.textContent
+
+## Defecto encontrado en el tramo 1 y corrección
+El clic en la 4.ª estrella no marcaba el radio, ni en Edge ni con un clic real en el panel:
+> elementFromPoint en el centro de la estrella → SPAN (glifo de la etiqueta); label.control === input → true;
+  transform de la etiqueta en hover → matrix(1.1, 0, 0, 1.1, 0, 0); puntuacion.value tras el clic → ""
+Causa: el radio invisible cubría la etiqueta y su :hover agrandaba la etiqueta (transform), que entonces quedaba encima del
+radio; el hover alternaba entre ambos y el clic terminaba en el contenedor común, que no marca nada.
+Corrección en css/estilos.css: el radio no recibe el ratón (pointer-events: none) y el agrandado pasa a .estrella:hover.
+Después, en el panel: clic en la 4.ª estrella → puntuacion.value "4", «4 de 5»; ArrowRight → "5", «5 de 5», foco en el radio
+con outline solid rgb(15, 118, 110) en su estrella. No se envió ninguna calificación con el defecto (calificacion de la
+recomendación 4: 0 filas). Para no gastar otra consulta, el tramo 2 califica desde el detalle de la misma consulta 6.
+
+## E8-flujo, tramo 2 (Edge): historial → detalle → calificación → consulta de cocina
+restaurado: Estudiante activo · id 11 / Mariana López Ortega | pestaña: pestana-consultar   (E-03 al recargar)
+historial: 1 consulta, de la más reciente a la más antigua. | 2 de noviembre de 2026 a las 11:47 p. m. | Respondida | Me interesa analizar datos y construir dashboards. | Hola. Como orientador de RutaIA, he analizado tu interés en el análisis de datos y la creación de dashboards. Dado que eres principiante, te recomiendo seguir e… | CURSOS RECOMENDADOS | Visualización de datos y dashboards con Power BI | Análisis de datos con Python y pandas | Consultas SQL para análisis de datos | Estadística aplicada al análisis de datos | Ver detalle
+detalle: Consulta 6 · 2 de noviembre de 2026 a las 11:47 p. m. | Califica esta recomendación
+estrellas elegidas: 4 de 5
+calificación: Tu calificación | Gracias: tu calificación quedó registrada. | ★★★★☆ | 4 de 5 | Me ayudó a saber por dónde empezar con datos. | Calificada el 2 de noviembre de 2026 a las 11:50 p. m.
+foco: Tu calificación
+foco tras volver: Ver detalle
+cocina: Estado: Sin resultados | No encontramos cursos del catálogo relacionados con tu necesidad. Intenta describirla con otras palabras. | fuentes: 0 | recomendación: false | calificación: false | alerta:
+[captura] etapa8-1280-05-historial.png 1280x900 desborde-horizontal=0
+[captura] etapa8-360-05-historial.png 360x1028 desborde-horizontal=0
+[captura] etapa8-1280-06-detalle.png 1280x2705 desborde-horizontal=0
+[captura] etapa8-360-06-detalle.png 360x3620 desborde-horizontal=0
+[captura] etapa8-1280-07-calificacion.png 1280x2557 desborde-horizontal=0
+[captura] etapa8-360-07-calificacion.png 360x3517 desborde-horizontal=0
+[captura] etapa8-1280-08-sin-resultados.png 1280x1029 desborde-horizontal=0
+[captura] etapa8-360-08-sin-resultados.png 360x1285 desborde-horizontal=0
+
+## E8-409 · calificación repetida (panel de navegador, clics reales)
+Antes del tramo 2 se abrió en el panel el detalle de la consulta 6 (formulario visible) y se marcaron 5 estrellas sin enviar.
+Después de que Edge calificara con 4, «Enviar calificación» en el panel → 409 → se lee E-12 y se muestra:
+Tu calificación | Esta recomendación ya estaba calificada; esta es la calificación registrada. | ★★★★☆ | 4 de 5 |
+Me ayudó a saber por dónde empezar con datos. | Calificada el 2 de noviembre de 2026 a las 11:50 p. m.   (foco: «Tu calificación»)
+Consola del panel (onlyErrors) en toda la sesión: solo los avisos de red del navegador por las respuestas provocadas a propósito:
+[error] Failed to load resource: the server responded with a status of 400 ()   (×2, registro)
+[error] Failed to load resource: the server responded with a status of 409 ()   (correo duplicado y calificación repetida)
+Ninguna excepción ni error de JavaScript, ni errores de CORS.
+
+## prefers-reduced-motion (Edge, Emulation.setEmulatedMedia)
+normal:   {"animacion":"trazar","desplazamiento":"100px","transicionBoton":"0.18s"}
+reducido: {"animacion":"none","desplazamiento":"0px","transicionBoton":"1e-05s"}   (la línea punteada aparece completa, sin animar)
+
+## Contraste WCAG (luminancia relativa de cada par de colores de estilos.css)
+OK 12.91:1 texto general (tinta / papel)                  OK 14.55:1 tinta / superficie
+OK  6.71:1 texto suave / papel                            OK  7.56:1 texto suave / superficie
+OK  5.47:1 botón primario (blanco / primario)             OK  7.63:1 secundario y enlaces (primario oscuro / superficie)
+OK  6.57:1 secundario en hover y pestaña móvil activa     OK  6.77:1 pestaña activa (primario oscuro / papel)
+OK  6.57:1 chip categoría                                 OK  5.97:1 chip nivel (acento texto / acento tenue)
+OK 11.72:1 chip duración                                  OK  6.03:1 rótulo de sección (acento texto / papel)
+OK 12.78:1 nota de espera (tinta / acento tenue)          OK  4.83:1 placeholder (#6B7280 / superficie)
+OK  4.76:1 Pendiente (blanco / #64748B)                   OK  5.02:1 Respondida (blanco / #15803D)
+OK  5.02:1 Sin resultados (blanco / #B45309)              OK  6.47:1 Error (blanco / #B91C1C) y error de campo
+OK  8.07:1 alerta (error texto / error fondo)             OK  7.38:1 aviso de éxito
+OK 12.91:1 recomendación (papel / tinta)                  OK  8.95:1 etiqueta «Recomendación de RutaIA» (#F6C27A / tinta)
+Componentes (mínimo 3:1): borde de controles 4.12 · foco sobre papel 4.86 y sobre superficie 5.47 · estrella llena 3.19 ·
+estrella vacía 4.12 · barra de similitud 4.41. Todas cumplen AA.
+
+## Log de la API (bootRun)
+2026-11-02T23:47:12.239-06:00  INFO ... ConsultaServicio : Consulta 6 finalizada: estado=Respondida, n8n=6931 ms, fuentes=4
+2026-11-02T23:50:34.857-06:00  INFO ... ConsultaServicio : Consulta 7 finalizada: estado=Sin resultados, n8n=974 ms, fuentes=0
+
+## Estado de la BD al terminar
+ id |   nombre_completo    |          correo           | nivel_experiencia |   area_interes    |   fecha_registro
+ 11 | Mariana López Ortega | mariana.lopez@rutaia.test | Principiante      | Análisis de datos | 2026-11-02 23:46:59
+
+ id | estudiante_id |     estado     |        fecha        | recomendacion_id
+  6 |            11 | Respondida     | 2026-11-02 23:47:05 |                4
+  7 |            11 | Sin resultados | 2026-11-02 23:50:33 |
+
+ recomendacion_id | curso_id | similitud
+                4 |       21 |    0.5322
+                4 |       20 |    0.4445
+                4 |        9 |    0.4344
+                4 |       22 |    0.3856
+
+ id | recomendacion_id | puntuacion |                  comentario                   |        fecha
+  4 |                4 |          4 | Me ayudó a saber por dónde empezar con datos. | 2026-11-02 23:50:30
+
+Solicitudes a OpenRouter en la Etapa 8: 3 (consulta 6: embedding + LLM; consulta 7: solo embedding). Presupuesto: ≤ 6.

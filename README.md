@@ -85,6 +85,8 @@ jwebserver -p 5500 -d "$(pwd)/frontend"   # en otra terminal, desde la raíz
 
 Detener: `docker compose stop` o `docker compose down` (sin `-v`, que borra todos los datos). Guía completa y verificaciones: [docs/entorno-local.md](docs/entorno-local.md).
 
+Frontend (registro, catálogo, consulta, resultado con fuentes, historial y calificación): cómo servirlo, estructura y decisiones de diseño en [docs/frontend.md](docs/frontend.md).
+
 ## 6. Importación de workflows
 
 Los flujos están en `n8n/` y el contenedor los ve en `/home/node/flujos`:

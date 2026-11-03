@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="RutaIA recomienda cursos del catálogo institucional a partir de lo que necesitas aprender.">
+  <meta name="theme-color" content="#F5F1E8">
+  <title>RutaIA · Cuaderno de ruta académica</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='9' fill='%23F5F1E8'/%3E%3Ccircle cx='10' cy='30' r='4' fill='%230F766E'/%3E%3Cpath d='M10 30C10 21 22 27 25 19' fill='none' stroke='%230F766E' stroke-width='2.6' stroke-linecap='round' stroke-dasharray='0 5'/%3E%3Cpath d='M28 22c-4-5-7-8-7-11.5a7 7 0 0 1 14 0C35 14 32 17 28 22z' fill='%23D97706'/%3E%3Ccircle cx='28' cy='10.5' r='2.6' fill='%23fff'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/estilos.css">
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <svg class="sprite" aria-hidden="true" focusable="false">
+    <symbol id="icono-registro" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="3.6"/><path d="M3.5 20c.4-3.6 3.2-6.2 6.5-6.2 1.6 0 3 .5 4.1 1.4"/><path d="M18 14.5v6M15 17.5h6"/></g></symbol>
+    <symbol id="icono-catalogo" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6.5C9.6 5 6.6 4.6 3.5 5.4v13c3.1-.8 6.1-.4 8.5 1.1 2.4-1.5 5.4-1.9 8.5-1.1v-13c-3.1-.8-6.1-.4-8.5 1.1z"/><path d="M12 6.5v13"/></g></symbol>
+    <symbol id="icono-consultar" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M15.6 8.4l-2.1 5.1-5.1 2.1 2.1-5.1z"/></g></symbol>
+    <symbol id="icono-historial" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4.5V8h3.5"/><path d="M12 8v4.2l2.8 1.8"/></g></symbol>
+    <symbol id="icono-estudiante" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.5" r="3.8"/><path d="M4.5 20c.6-3.8 3.7-6.3 7.5-6.3s6.9 2.5 7.5 6.3"/></g></symbol>
+    <symbol id="icono-alerta" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v5.5M12 16.3v.2"/></g></symbol>
+    <symbol id="icono-reloj" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></g></symbol>
+    <symbol id="icono-volver" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></g></symbol>
+    <symbol id="icono-cerrar" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></g></symbol>
+  </svg>
+
+  <a class="saltar" href="#contenido">Saltar al contenido</a>
+
+  <header class="cabecera">
+    <div class="contenedor cabecera-fila">
+      <div class="marca">
+        <svg class="marca-icono" viewBox="0 0 40 40" aria-hidden="true" focusable="false">
+          <circle cx="9" cy="31" r="4" fill="#0F766E"/>
+          <path d="M9 31C9 21 22 28 25 20" fill="none" stroke="#0F766E" stroke-width="2.6" stroke-linecap="round" stroke-dasharray="0 5"/>
+          <path d="M28 23c-4.2-5-7-8.2-7-11.7a7 7 0 0 1 14 0c0 3.5-2.8 6.7-7 11.7z" fill="#D97706"/>
+          <circle cx="28" cy="11.3" r="2.6" fill="#FFFFFF"/>
+        </svg>
+        <div>
+          <h1 class="marca-nombre">Ruta<span>IA</span></h1>
+          <p class="marca-lema">Cuaderno de ruta académica</p>
+        </div>
+      </div>
+      <button type="button" class="chip-estudiante chip-estudiante--vacio" id="chip-estudiante" data-ir-a="registro"></button>
+    </div>
+    <div class="contenedor">
+      <div class="pestanas" role="tablist" aria-label="Secciones de RutaIA">
+        <button type="button" class="pestana" role="tab" id="pestana-registro" aria-controls="panel-registro" aria-selected="false" tabindex="-1" data-panel="registro">
+          <svg class="icono" aria-hidden="true" focusable="false"><use href="#icono-registro"></use></svg>
+          <span>Registro</span>
+        </button>
+        <button type="button" class="pestana" role="tab" id="pestana-catalogo" aria-controls="panel-catalogo" aria-selected="false" tabindex="-1" data-panel="catalogo">
+          <svg class="icono" aria-hidden="true" focusable="false"><use href="#icono-catalogo"></use></svg>
+          <span>Catálogo</span>
+        </button>
+        <button type="button" class="pestana" role="tab" id="pestana-consultar" aria-controls="panel-consultar" aria-selected="false" tabindex="-1" data-panel="consultar">
+          <svg class="icono" aria-hidden="true" focusable="false"><use href="#icono-consultar"></use></svg>
+          <span>Consultar</span>
+        </button>
+        <button type="button" class="pestana" role="tab" id="pestana-historial" aria-controls="panel-historial" aria-selected="false" tabindex="-1" data-panel="historial">
+          <svg class="icono" aria-hidden="true" focusable="false"><use href="#icono-historial"></use></svg>
+          <span>Historial</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div class="contenedor">
+    <div class="aviso-global" id="aviso-global" role="status">
+      <p id="aviso-global-texto"></p>
+      <button type="button" class="boton-icono" id="aviso-global-cerrar" aria-label="Cerrar aviso">
+        <svg class="icono" aria-hidden="true" focusable="false"><use href="#icono-cerrar"></use></svg>
+      </button>
+    </div>
+  </div>
+
+  <main id="contenido" class="contenedor">
+
+    <!-- Registro (E-01) y elección de un estudiante existente (E-02) -->
+    <section class="panel" id="panel-registro" role="tabpanel" aria-labelledby="pestana-registro" hidden>
+      <header class="panel-cabecera">
+        <p class="panel-paso">Punto de partida</p>
+        <h2 tabindex="-1">Registro</h2>
+        <p class="panel-intro">Crea tu perfil con tu nivel de experiencia y tu área de interés, o elige uno que ya exista. El estudiante activo es quien consulta y quien ve su historial.</p>
+      </header>
+
+      <div class="rejilla-registro">
+        <article class="tarjeta" aria-labelledby="titulo-crear-perfil">
+          <h3 id="titulo-crear-perfil">Crear perfil</h3>
+          <form id="form-registro" class="formulario" novalidate>
+            <div class="campo">
+              <label for="registro-nombre">Nombre completo</label>
+              <input id="registro-nombre" name="nombreCompleto" type="text" autocomplete="name" maxlength="120" required aria-describedby="error-registro-nombre">
+              <p class="campo-error" id="error-registro-nombre" data-error-de="nombreCompleto"></p>
+            </div>
+            <div class="campo">
+              <label for="registro-correo">Correo electrónico</label>
+              <input id="registro-correo" name="correo" type="email" inputmode="email" autocomplete="email" maxlength="254" required aria-describedby="error-registro-correo">
+              <p class="campo-error" id="error-registro-correo" data-error-de="correo"></p>
+            </div>
+            <fieldset class="campo">
+              <legend>Nivel de experiencia</legend>
+              <div class="segmentado">
+                <span class="segmento">
+                  <input type="radio" id="registro-nivel-principiante" name="nivelExperiencia" value="Principiante" aria-describedby="error-registro-nivel">
+                  <label for="registro-nivel-principiante">Principiante</label>
+                </span>
+                <span class="segmento">
+                  <input type="radio" id="registro-nivel-intermedio" name="nivelExperiencia" value="Intermedio" aria-describedby="error-registro-nivel">
+                  <label for="registro-nivel-intermedio">Intermedio</label>
+                </span>
+                <span class="segmento">
+                  <input type="radio" id="registro-nivel-avanzado" name="nivelExperiencia" value="Avanzado" aria-describedby="error-registro-nivel">
+                  <label for="registro-nivel-avanzado">Avanzado</label>
+                </span>
+              </div>
+              <p class="campo-error" id="error-registro-nivel" data-error-de="nivelExperiencia"></p>
+            </fieldset>
+            <div class="campo">
+              <label for="registro-area">Área de interés</label>
+              <input id="registro-area" name="areaInteres" type="text" maxlength="100" required placeholder="Por ejemplo: Desarrollo web" aria-describedby="error-registro-area">
+              <p class="campo-error" id="error-registro-area" data-error-de="areaInteres"></p>
+            </div>
+            <div class="alerta" id="registro-alerta" role="alert"></div>
+            <button type="submit" class="boton">Registrarme</button>
+          </form>
+          <div class="aviso-exito" id="registro-exito" role="status"></div>
+        </article>
+
+        <article class="tarjeta tarjeta-elegir" aria-labelledby="titulo-elegir">
+          <h3 id="titulo-elegir">¿Ya tienes perfil?</h3>
+          <p class="texto-suave">Elige un estudiante registrado para consultar con su perfil y ver su historial.</p>
+          <form id="form-elegir" class="formulario" novalidate>
+            <div class="campo">
+              <label for="elegir-estudiante">Estudiante registrado</label>
+              <select id="elegir-estudiante" name="estudiante" aria-describedby="error-elegir-estudiante">
+                <option value="">Cargando estudiantes…</option>
+              </select>
+              <p class="campo-error" id="error-elegir-estudiante" data-error-de="estudiante"></p>
+            </div>
+            <div class="alerta" id="elegir-alerta" role="alert"></div>
+            <button type="submit" class="boton boton-secundario">Usar este perfil</button>
+          </form>
+          <div class="aviso-exito" id="elegir-exito" role="status"></div>
+        </article>
+      </div>
+    </section>
+
+    <!-- Catálogo (E-05) -->
+    <section class="panel" id="panel-catalogo" role="tabpanel" aria-labelledby="pestana-catalogo" hidden>
+      <header class="panel-cabecera">
+        <p class="panel-paso">Mapa de cursos</p>
+        <h2 tabindex="-1">Catálogo</h2>
+        <p class="panel-intro">Cursos activos del catálogo institucional. Filtra por categoría y por nivel.</p>
+      </header>
+
+      <form id="form-filtros" class="tarjeta filtros" aria-label="Filtros del catálogo">
+        <div class="campo">
+          <label for="filtro-categoria">Categoría</label>
+          <select id="filtro-categoria" name="categoria">
+            <option value="">Todas las categorías</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label for="filtro-nivel">Nivel</label>
+          <select id="filtro-nivel" name="nivel">
+            <option value="">Todos los niveles</option>
+            <option value="Básico">Básico</option>
+            <option value="Intermedio">Intermedio</option>
+            <option value="Avanzado">Avanzado</option>
+          </select>
+        </div>
+      </form>
+
+      <p class="estado-lista" id="catalogo-estado" role="status"></p>
+      <div class="alerta" id="catalogo-alerta" role="alert"></div>
+      <ul class="rejilla-cursos" id="catalogo-lista" aria-label="Cursos del catálogo"></ul>
+    </section>
+
+    <!-- Consultar (E-11) y resultado -->
+    <section class="panel" id="panel-consultar" role="tabpanel" aria-labelledby="pestana-consultar" hidden>
+      <header class="panel-cabecera">
+        <p class="panel-paso">Tu necesidad</p>
+        <h2 tabindex="-1">Consultar</h2>
+        <p class="panel-intro">Escribe con tus palabras qué quieres aprender. RutaIA busca en el catálogo y te recomienda cursos que ya existen.</p>
+      </header>
+
+      <div class="aviso-requisito tarjeta" id="consultar-sin-estudiante">
+        <p>Para consultar necesitas un estudiante activo. Regístrate o elige tu perfil en Registro.</p>
+        <button type="button" class="boton boton-secundario" data-ir-a="registro">Ir a Registro</button>
+      </div>
+
+      <div id="consultar-contenido" hidden>
+        <form id="form-consulta" class="tarjeta formulario form-consulta" novalidate>
+          <p class="consultando-como">Consultas como <strong id="consultar-estudiante"></strong></p>
+          <div class="campo">
+            <label for="consulta-pregunta">¿Qué necesitas aprender?</label>
+            <textarea id="consulta-pregunta" name="pregunta" rows="5" maxlength="500" placeholder="Por ejemplo: quiero aprender a crear páginas web desde cero." aria-describedby="consulta-espera consulta-contador error-consulta-pregunta"></textarea>
+            <div class="campo-pie">
+              <p class="campo-error" id="error-consulta-pregunta" data-error-de="pregunta"></p>
+              <p class="contador" id="consulta-contador">0 / 500</p>
+            </div>
+          </div>
+          <p class="nota-espera" id="consulta-espera">
+            <svg class="icono" aria-hidden="true" focusable="false"><use href="#icono-reloj"></use></svg>
+            <span>La respuesta puede tardar hasta un minuto y medio: RutaIA busca en el catálogo y redacta tu recomendación.</span>
+          </p>
+          <div class="alerta" id="consulta-alerta" role="alert"></div>
+          <button type="submit" class="boton" id="consulta-enviar">Trazar mi ruta</button>
+        </form>
+
+        <div class="cargando" id="consulta-cargando" role="status"></div>
+        <div id="consulta-resultado" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <!-- Historial (E-04) y detalle (E-12) -->
+    <section class="panel" id="panel-historial" role="tabpanel" aria-labelledby="pestana-historial" hidden>
+      <header class="panel-cabecera">
+        <p class="panel-paso">Bitácora</p>
+        <h2 tabindex="-1">Historial</h2>
+        <p class="panel-intro">Tus consultas, de la más reciente a la más antigua. Abre cualquiera para ver la recomendación completa y calificarla.</p>
+      </header>
+
+      <div class="aviso-requisito tarjeta" id="historial-sin-estudiante">
+        <p>Para ver un historial necesitas un estudiante activo. Regístrate o elige tu perfil en Registro.</p>
+        <button type="button" class="boton boton-secundario" data-ir-a="registro">Ir a Registro</button>
+      </div>
+
+      <div id="historial-contenido" hidden>
+        <div id="historial-vista-lista">
+          <p class="estado-lista" id="historial-estado" role="status"></p>
+          <div class="aviso-requisito tarjeta" id="historial-vacio" hidden>
+            <p>Aún no tienes consultas. Escribe tu primera necesidad en Consultar.</p>
+            <button type="button" class="boton boton-secundario" data-ir-a="consultar">Ir a Consultar</button>
+          </div>
+          <div class="alerta" id="historial-alerta" role="alert"></div>
+          <ol class="bitacora" id="historial-lista" aria-label="Consultas del estudiante"></ol>
+        </div>
+
+        <div id="historial-vista-detalle" hidden>
+          <button type="button" class="boton-enlace boton-volver" id="historial-volver">
+            <svg class="icono" aria-hidden="true" focusable="false"><use href="#icono-volver"></use></svg>
+            Volver al historial
+          </button>
+          <p class="estado-lista" id="historial-detalle-estado" role="status"></p>
+          <div class="alerta" id="historial-detalle-alerta" role="alert"></div>
+          <div id="historial-detalle" aria-live="polite"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="pie">
+    <div class="contenedor">
+      <p>RutaIA recomienda solo cursos que existen en el catálogo institucional.</p>
+    </div>
+  </footer>
+
+  <template id="plantilla-carga">
+    <svg class="carga-ruta" viewBox="0 0 260 64" aria-hidden="true" focusable="false">
+      <defs>
+        <mask id="mascara-trazo" maskUnits="userSpaceOnUse" x="0" y="0" width="260" height="64">
+          <path class="trazo-mascara" pathLength="100" d="M14 50C58 50 70 16 116 25S188 54 232 36"/>
+        </mask>
+      </defs>
+      <path class="trazo-guia" d="M14 50C58 50 70 16 116 25S188 54 232 36"/>
+      <path class="trazo-ruta" d="M14 50C58 50 70 16 116 25S188 54 232 36" mask="url(#mascara-trazo)"/>
+      <circle class="punto-inicio" cx="14" cy="50" r="7"/>
+      <g class="punto-destino">
+        <path d="M236 36c-5.5-6.4-9.5-10.6-9.5-15.3a9.5 9.5 0 0 1 19 0c0 4.7-4 8.9-9.5 15.3z"/>
+        <circle cx="236" cy="20.7" r="3.4" fill="#FFFFFF"/>
+      </g>
+    </svg>
+    <p class="carga-texto">Trazando tu ruta…</p>
+    <p class="carga-nota">Buscamos en el catálogo y redactamos tu recomendación. Puede tardar hasta un minuto y medio.</p>
+  </template>
+</body>
+</html>
