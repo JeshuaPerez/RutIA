@@ -2,7 +2,7 @@
 
 Documento de pruebas del proyecto. Todo se ejecutó en Windows 11 Home 10.0.26200 entre el 2026-11-01 y el 2026-11-03, con JDK 21.0.13, Docker Desktop y los contenedores de `docker-compose.yml`. Los comandos de Linux están documentados en el README, pero **no se han verificado**.
 
-Resultado global: 61 de 63 requisitos cumplidos y 2 parciales (la evidencia de Swagger, a la que le faltan capturas, y la presentación, que falta armar a partir del guion). Las 10 consultas de prueba pasan.
+Resultado global: 62 de 63 requisitos cumplidos y 1 parcial (la presentación, que falta armar a partir del guion). Las 10 consultas de prueba pasan.
 
 ## Cómo probar
 
@@ -29,7 +29,7 @@ Los cuerpos están en `pruebas/api/` y las capturas en `evidencias/`.
 | Requisito | Caso | Resultado | Evidencia |
 |---|---|---|---|
 | RF 01 Registro, correo único, niveles | E-01 con `estudiante-valido`, `estudiante-correo-duplicado`, `estudiante-nivel-invalido` | 201 con el correo `ana.torres@rutaia.test`; 409 «ya está registrado»; 400 | [e01](evidencias/etapa2-swagger-e01-registrar-estudiante.png), [360-01](evidencias/etapa8-360-01-registro.png) |
-| RF 02 Estudiante por id, listado, historial | E-02, E-03 `/1` y `/999999`, E-04 `/1/historial` | 200 con ids ascendentes; 200; 404 «No existe un estudiante con id 999999»; 200, fecha descendente | [openapi.json](openapi.json), [1280-05](evidencias/etapa8-1280-05-historial.png) |
+| RF 02 Estudiante por id, listado, historial | E-02, E-03 `/1` y `/999999`, E-04 `/1/historial` | 200 con ids ascendentes; 200; 404 «No existe un estudiante con id 999999»; 200, fecha descendente | [openapi.json](openapi.json), [e04](evidencias/swagger-e04-historial.png), [1280-05](evidencias/etapa8-1280-05-historial.png) |
 | RF 03 Registrar, consultar, actualizar y desactivar cursos | E-06 `curso-valido`, E-08, E-09 `curso-actualizado`, E-10 dos veces | 201 con `activo` true; 200; 200 sin tocar `activo`; 200 con `activo` false (idempotente); 404 con id 999999 | [e06](evidencias/etapa2-swagger-e06-registrar-curso.png), [e10](evidencias/etapa2-swagger-e10-desactivar-curso.png) |
 | RF 04 Catálogo: solo activos y filtros | E-05 sin filtros, `?categoria=Desarrollo%20web`, `?nivel=Experto` | 28 cursos (sin el 29 ni el 30); 4; 400 | [e05](evidencias/etapa2-swagger-e05-catalogo.png) |
 | RF 05 Carga en Qdrant | Indexación, dos veces | 30 puntos, `coleccionCreada` true y luego false; payload de 7 campos con id = `cursoId` | [n8n.md](n8n.md#indexación) |
@@ -43,9 +43,9 @@ Los cuerpos están en `pruebas/api/` y las capturas en `evidencias/`.
 | RF 13 Respuesta con id, pregunta, respuesta, fuentes, similitud y estado | E-11 con CP 01 | 9 campos y 7 por fuente; similitud con 4 decimales | [e11](evidencias/etapa6-swagger-e11-consultas.png) |
 | RF 14 Recomendación con varias fuentes | Estado final de la integración | 8 recomendaciones con 29 fuentes | [Las 10 consultas](#las-10-consultas) |
 | RF 15 Presentación de resultados y mensajes | Frontend: CP 03 y CP 08 | La recomendación va separada de las fuentes, con su similitud; mensaje fijo de Sin resultados | [1280-04](evidencias/etapa8-1280-04-resultado.png), [360-04](evidencias/etapa8-360-04-resultado.png), [1280-08](evidencias/etapa8-1280-08-sin-resultados.png) |
-| RF 16 Historial y detalle | Historial → Ver detalle | Fecha descendente, resumen de 160 caracteres más «…» y cursos; el detalle es E-11 más la calificación | [1280-05](evidencias/etapa8-1280-05-historial.png), [1280-07](evidencias/etapa8-1280-07-calificacion.png) |
-| RF 17 Calificación 1–5, comentario opcional, una sola | E-13 con `calificacion-con-comentario`, `calificacion-sin-comentario`, `calificacion-comentario-501` y un segundo POST | 201; 201 con `comentario` null; 400; 409 «ya fue calificada» | [1280-07](evidencias/etapa8-1280-07-calificacion.png) |
-| RF 18 Estadísticas | E-14 frente a `control-estadisticas.sql` | Iguales: 15 / 8 / 1, promedio 3,8 y curso 4 con 3 | [control-estadisticas.sql](../pruebas/bd/control-estadisticas.sql) |
+| RF 16 Historial y detalle | Historial → Ver detalle | Fecha descendente, resumen de 160 caracteres más «…» y cursos; el detalle es E-11 más la calificación | [e04](evidencias/swagger-e04-historial.png), [e12](evidencias/swagger-e12-detalle.png), [1280-05](evidencias/etapa8-1280-05-historial.png), [1280-07](evidencias/etapa8-1280-07-calificacion.png) |
+| RF 17 Calificación 1–5, comentario opcional, una sola | E-13 con `calificacion-con-comentario`, `calificacion-sin-comentario`, `calificacion-comentario-501` y un segundo POST | 201; 201 con `comentario` null; 400; 409 «ya fue calificada» | [e13](evidencias/swagger-e13-calificacion.png), [1280-07](evidencias/etapa8-1280-07-calificacion.png) |
+| RF 18 Estadísticas | E-14 frente a `control-estadisticas.sql` | Iguales: 15 / 8 / 1, promedio 3,8 y curso 4 con 3 | [e14](evidencias/swagger-e14-estadisticas.png), [control-estadisticas.sql](../pruebas/bd/control-estadisticas.sql) |
 | 5.2 Administración de cursos por Swagger | E-06 y E-10 en Swagger UI | 201 y 200 | [e06](evidencias/etapa2-swagger-e06-registrar-curso.png), [e10](evidencias/etapa2-swagger-e10-desactivar-curso.png) |
 | RN 01 Un correo, un estudiante | `estudiante-correo-duplicado`; 10 POST simultáneos con el mismo correo | 409; 1 × 201 y 9 × 409 | `uq_estudiante_correo` |
 | RN 02 Solo cursos activos | Curso 1 desactivado sin re-indexar y CP 01 | Fuentes 2, 3 y 4: Qdrant devolvió el 1 y «Filtrar fuentes» lo descartó | [Robustez](#robustez) |
@@ -97,6 +97,8 @@ Antes de los resultados válidos, 4 intentos terminaron en Error por causas exte
 - 1 en CP 06, por el tope diario de los modelos `:free`.
 
 **Regresión de R1** (commit `7b90ccf`, Windows 11): las CP 01 a 10 dieron lo mismo que la línea base. CP 08 terminó una vez en 201 Error porque n8n no pudo conectarse a OpenRouter (ECONNREFUSED); al repetirla dio Sin resultados. Además, 62 de 62 casos 400/404/405/409/415 fueron iguales a `entrega-v1`.
+
+**Verificación final (2026-11-03)**, Windows 11 con la configuración por defecto: los comandos de «Puertos» del README muestran `com.docker.backend` en 5433, 6333 y 5678, Java en 8080 y `jwebserver` en 5500; las CP 01 a 10 dieron lo mismo que la línea base, con las mismas fuentes y similitudes (consultas 35 a 42; la 9 y la 10 sin consulta nueva ni ejecución en n8n); con n8n detenido, 201 Error «n8n no respondió: conexión rechazada» y 0 en Pendiente; `GET /v3/api-docs` es igual a [openapi.json](openapi.json) (14 operaciones); E-14 es igual a `control-estadisticas.sql` (43 / 28 / 6, promedio 4,14 y curso 4 con 9). Se gastaron 15 solicitudes a OpenRouter.
 
 **Datos mínimos y calificaciones.**
 - La base terminó con 15 consultas: 8 Respondida, 1 Sin resultados, 6 Error y 0 Pendiente.

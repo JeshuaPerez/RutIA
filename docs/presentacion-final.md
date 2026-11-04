@@ -72,7 +72,7 @@ Plan B: las capturas de [evidencias/](evidencias/).
 | CP 08 cocina | Sin resultados, sin llamada al LLM |
 | CP 09 y CP 10 | 400 y 404, sin crear la consulta ni llamar a n8n |
 | n8n o Qdrant detenidos | Error controlado, nada en Pendiente |
-| Requisitos | 61 de 63 cumplidos y 2 parciales; estadísticas iguales a SQL |
+| Requisitos | 62 de 63 cumplidos y 1 parcial; estadísticas iguales a SQL |
 
 ## 10. Decisiones de diseño
 - Docker Compose con etiquetas exactas y puertos definidos una sola vez en `.env`.
