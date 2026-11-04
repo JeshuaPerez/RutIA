@@ -2,36 +2,36 @@
 
 Orientación académica con inteligencia artificial: el estudiante describe en lenguaje natural lo que necesita aprender y RutaIA le recomienda **cursos existentes** del catálogo institucional, explicando por qué y en qué orden tomarlos.
 
-## 1. Nombre del proyecto e integrantes
+## Nombre del proyecto e integrantes
 
 | Dato | Valor |
 |---|---|
-| Proyecto | **RutaIA** — recomendación de cursos con una arquitectura RAG |
-| Integrante | Jeshua Perez (proyecto individual: hizo todas las etapas) |
+| Proyecto | **RutaIA**: recomendación de cursos con una arquitectura RAG |
+| Integrante | Jeshua Perez (proyecto individual) |
 | Repositorio | https://github.com/JeshuaPerez/RutIA |
 
-## 2. Descripción de la problemática y solución propuesta
+## Descripción de la problemática y solución propuesta
 
-**Problemática.** En un catálogo institucional con decenas de cursos, el estudiante no siempre sabe qué nombre tiene lo que busca, qué cursos tratan su tema ni por cuál empezar según su nivel. Un buscador por palabras falla cuando la necesidad está escrita con otras palabras («proteger aplicaciones web» frente a «OWASP Top 10»). Un chatbot genérico, en cambio, puede inventar cursos que la institución no ofrece.
+**Problemática.** En un catálogo con decenas de cursos, el estudiante no siempre sabe qué nombre tiene lo que busca, qué cursos tratan su tema ni por cuál empezar según su nivel. Un buscador por palabras falla cuando la necesidad está escrita con otras palabras («proteger aplicaciones web» frente a «OWASP Top 10»), y un chatbot genérico puede inventar cursos que la institución no ofrece.
 
 **Solución propuesta.** Una aplicación web en la que el estudiante se registra con su nivel y su área de interés, escribe su necesidad y recibe una recomendación generada con **RAG** (*Retrieval-Augmented Generation*):
 
 1. La API guarda la consulta y la envía a un flujo de n8n.
-2. El flujo convierte la pregunta en un vector (embedding) y busca en Qdrant los cursos activos más parecidos que superen un **umbral de similitud calibrado (0,34)**.
-3. Si no hay cursos pertinentes, responde «Sin resultados» sin llamar al modelo de lenguaje. Si los hay, el LLM redacta la recomendación **usando solo esos cursos**. La respuesta se valida para que no nombre cursos ajenos.
-4. La API guarda la recomendación con sus fuentes y su similitud. El estudiante ve el resultado, su historial, y puede calificar cada recomendación de 1 a 5.
+2. El flujo convierte la pregunta en un vector (embedding) y busca en Qdrant los cursos activos más parecidos que superen un **umbral de similitud calibrado (0.34)**.
+3. Si no hay cursos pertinentes, responde «Sin resultados» sin llamar al modelo de lenguaje. Si los hay, el LLM redacta la recomendación **usando solo esos cursos**, y la respuesta se valida para que no nombre cursos ajenos.
+4. La API guarda la recomendación con sus fuentes y su similitud. El estudiante ve el resultado y su historial, y puede calificar cada recomendación de 1 a 5.
 
-## 3. Tecnologías y arquitectura
+## Tecnologías y arquitectura
 
 | Capa | Tecnología |
 |---|---|
-| Frontend | HTML, CSS y JavaScript nativos (módulos ES, Fetch, `async`/`await`), servidos con `jwebserver` (JDK 21) en el puerto 5500 |
+| Frontend | HTML, CSS y JavaScript nativos (módulos ES, Fetch, `async`/`await`), servidos con `jwebserver` (JDK 21) |
 | Backend | Java 21, Spring Boot 4.1.2 (Web MVC, Data JPA, Validation), Gradle, springdoc-openapi 3.2.0 (Swagger). Es la **única puerta de entrada** |
 | Base relacional | PostgreSQL 17 (contenedor), base `rutaia` |
 | Base vectorial | Qdrant v1.20.0 (contenedor), colección `rutaia_cursos` (2048 dimensiones, Cosine) |
 | Automatización | n8n 2.45.7 (contenedor): indexación, calibración y consulta RAG |
-| IA (OpenRouter) | Embeddings `nvidia/nemotron-3-embed-1b:free` (capa gratuita). LLM `google/gemma-4-31b-it`, variante de pago del modelo del contrato, con crédito de OpenRouter (menos de 0,001 USD por consulta; ver «Errores conocidos») |
-| Infraestructura | Docker Compose v2 ([docker-compose.yml](docker-compose.yml)): PostgreSQL, Qdrant y n8n. El backend y el frontend corren en la máquina |
+| IA (OpenRouter) | Embeddings `nvidia/nemotron-3-embed-1b:free` (gratuito) y LLM `google/gemma-4-31b-it` (de pago, centavos por consulta) |
+| Infraestructura | Docker Compose ([docker-compose.yml](docker-compose.yml)) para PostgreSQL, Qdrant y n8n; el backend y el frontend corren en la máquina |
 
 ```text
 Navegador → Frontend :5500 → API Spring Boot :8080 ─┬─ PostgreSQL :5433
@@ -41,53 +41,103 @@ Navegador → Frontend :5500 → API Spring Boot :8080 ─┬─ PostgreSQL :543
                                                                              └─ OpenRouter: LLM con los cursos recuperados
 ```
 
-Documentación detallada:
-- **Diagrama de arquitectura**, puertos y flujos: [docs/arquitectura.md](docs/arquitectura.md)
-- **Diagrama entidad-relación**, tablas, restricciones e índices: [docs/base-de-datos.md](docs/base-de-datos.md)
-- Flujos de n8n: [docs/n8n.md](docs/n8n.md) · Umbral: [docs/calibracion-umbral.md](docs/calibracion-umbral.md) · Frontend: [docs/frontend.md](docs/frontend.md)
-- Contrato técnico C1–C12 y su registro de cambios: [docs/contrato.md](docs/contrato.md)
-- Pruebas: [docs/pruebas-funcionales.md](docs/pruebas-funcionales.md) · Informe de integración: [docs/informe-integracion.md](docs/informe-integracion.md) · Guion de la presentación: [docs/presentacion-final.md](docs/presentacion-final.md)
+**Backend.** Arquitectura en capas: `presentacion` (controladores y manejo global de errores) → `aplicacion` (servicios, DTO, mappers y puertos) → `dominio` y `persistencia` (repositorios Spring Data); `integracion.n8n` implementa un puerto de `aplicacion`. Aplica SOLID: interfaces de servicio separadas por uso e inyección por constructor, y la aplicación depende de `MotorRecomendacion`, nunca de n8n. El patrón **Adapter** (`MotorRecomendacionN8n`) adapta el webhook de n8n a ese puerto, así que un motor nuevo es una clase nueva.
 
-## 4. Requisitos de instalación y variables de entorno
+Documentación:
+- [docs/arquitectura.md](docs/arquitectura.md): diagrama de arquitectura, flujos, backend, frontend y decisiones.
+- [docs/base-de-datos.md](docs/base-de-datos.md): diagrama entidad-relación, restricciones e índices.
+- [docs/n8n.md](docs/n8n.md): flujos y calibración del umbral.
+- [docs/pruebas.md](docs/pruebas.md): documento de pruebas.
+- [docs/presentacion-final.md](docs/presentacion-final.md): guion de la presentación.
 
-En la máquina solo hacen falta **Docker** (Docker Desktop con WSL2 en Windows; Docker Engine con el plugin Compose en Linux), **JDK 21** (incluye `jwebserver`) y **Git**. PostgreSQL, Qdrant y n8n no se instalan aparte. Instalación paso a paso: [docs/entorno-local.md](docs/entorno-local.md#1-requisitos-e-instalación).
+## Requisitos de instalación y variables de entorno
 
-Además hace falta una **cuenta de OpenRouter** con:
-- una API key, que se guarda solo en la credencial de n8n;
-- la privacidad de los proveedores gratuitos habilitada ([guía](docs/entorno-local.md#4-primera-configuración-de-n8n-y-openrouter));
-- **crédito** para el LLM de pago. Con 10 créditos comprados, el tope de los modelos `:free` sube de 50 a 1000 solicitudes por día.
+En la máquina solo hacen falta **Docker** (Docker Desktop con WSL2 en Windows; Docker Engine con el plugin Compose en Linux), **JDK 21** (incluye `jwebserver`) y **Git**. PostgreSQL, Qdrant y n8n no se instalan aparte.
 
-**Variables.** Copia [.env.example](.env.example) como `.env` en la raíz y escribe tu propia contraseña en `RUTAIA_DB_PASSWORD`. El `.env` no se versiona. Los valores van sin comillas, espacios ni barras invertidas.
-
-PowerShell:
+Windows (PowerShell como administrador; después, abre Docker Desktop una vez y abre una terminal nueva):
 ```powershell
-git clone https://github.com/JeshuaPerez/RutIA.git; cd RutIA
-Copy-Item .env.example .env
-notepad .env
+wsl --install --no-distribution
+winget install -e --id Docker.DockerDesktop
+winget install -e --id EclipseAdoptium.Temurin.21.JDK
+winget install -e --id Git.Git
 ```
-bash:
+Linux, Ubuntu o Debian (sin verificar):
 ```bash
-git clone https://github.com/JeshuaPerez/RutIA.git && cd RutIA
-cp .env.example .env
-nano .env
+curl -fsSL https://get.docker.com | sudo sh
+sudo usermod -aG docker "$USER"   # cierra sesión y vuelve a entrar
+sudo apt-get update && sudo apt-get install -y openjdk-21-jdk git
 ```
 
-| Variable | Valor de `.env.example` | Secreta | La usan |
+**Variables.** Copia [.env.example](.env.example) como `.env` en la raíz y escribe tu contraseña en `RUTAIA_DB_PASSWORD`, sin comillas, espacios ni barras invertidas (lo más seguro es usar solo letras y números). El `.env` no se versiona.
+
+```powershell
+git clone https://github.com/JeshuaPerez/RutIA.git; cd RutIA; Copy-Item .env.example .env; notepad .env
+```
+```bash
+git clone https://github.com/JeshuaPerez/RutIA.git && cd RutIA && cp .env.example .env && nano .env
+```
+
+| Variable | Valor en `.env.example` | La usan |
+|---|---|---|
+| `RUTAIA_DB_USER` | `rutaia_app` | Compose (usuario de PostgreSQL) y Spring Boot |
+| `RUTAIA_DB_PASSWORD` | *(vacía: obligatoria, la eliges tú)* | Compose y Spring Boot. **Es secreta** |
+| `RUTAIA_N8N_TIMEOUT_SEGUNDOS` | `90` | Spring Boot (tiempo máximo de espera de n8n) |
+| `RUTAIA_PUERTO_POSTGRES` | `5433` | Compose (puerto publicado) y URL JDBC de Spring Boot |
+| `RUTAIA_PUERTO_QDRANT` | `6333` | Compose (puerto publicado) |
+| `RUTAIA_PUERTO_N8N` | `5678` | Compose (puerto publicado) y URL del webhook en Spring Boot |
+| `RUTAIA_PUERTO_API` | `8080` | `server.port` de Spring Boot y `RUTAIA_API_URL` del contenedor n8n |
+| `RUTAIA_PUERTO_FRONTEND` | `5500` | Orígenes CORS de Spring Boot |
+
+Docker Compose lee el `.env` solo; Spring Boot lo importa desde `backend/` con `spring.config.import=optional:file:../.env[.properties]`. `RUTAIA_API_URL` no va en el `.env`: Compose la arma con `RUTAIA_PUERTO_API` y los flujos la leen con `{{ $env.RUTAIA_API_URL }}`. La contraseña de PostgreSQL se fija la **primera vez** que se crea el volumen `pgdata` (ver «Errores conocidos»).
+
+### Puertos
+
+Cada puerto se define una sola vez, en `.env`. Si uno choca con otro programa, cambia su variable y, en las filas que lo indican, también lo que dice la última columna:
+
+| Puerto | Componente | Variable | Además |
 |---|---|---|---|
-| `RUTAIA_DB_USER` | `rutaia_app` | no | Compose (`POSTGRES_USER`) y Spring Boot |
-| `RUTAIA_DB_PASSWORD` | *(vacía: la eliges tú)* | **sí** | Compose (`POSTGRES_PASSWORD`) y Spring Boot |
-| `RUTAIA_DB_URL` | `jdbc:postgresql://127.0.0.1:5433/rutaia` | no | Spring Boot |
-| `RUTAIA_N8N_WEBHOOK_URL` | `http://127.0.0.1:5678/webhook/rutaia-consulta-rag` | no | Spring Boot |
-| `RUTAIA_N8N_TIMEOUT_SEGUNDOS` | `90` | no | Spring Boot (read timeout hacia n8n) |
-| `RUTAIA_CORS_ORIGINS` | `http://localhost:5500,http://127.0.0.1:5500` | no | Spring Boot (CORS de `/api/**`) |
+| 5433 | PostgreSQL | `RUTAIA_PUERTO_POSTGRES` | `docker compose up -d` y reiniciar el backend |
+| 6333 | Qdrant | `RUTAIA_PUERTO_QDRANT` | `docker compose up -d` (dentro de Docker los flujos usan `qdrant:6333`) |
+| 5678 | n8n | `RUTAIA_PUERTO_N8N` | `docker compose up -d` y reiniciar el backend; usa ese puerto en las URL de n8n de este README |
+| 8080 | API | `RUTAIA_PUERTO_API` | `API_BASE_URL` en [frontend/js/config.js](frontend/js/config.js); `docker compose up -d n8n` y reiniciar el backend |
+| 5500 | Frontend | `RUTAIA_PUERTO_FRONTEND` | El `-p` del comando de `jwebserver`; reiniciar el backend (CORS) |
 
-Docker Compose lee el `.env` solo. Spring Boot lo importa con `spring.config.import=optional:file:../.env[.properties]`, porque se ejecuta desde `backend/`. La clave de OpenRouter **no** va en el `.env`.
+Los puertos internos de los contenedores (5432, 6333 y 5678, a la derecha de `host:contenedor`) son fijos. Con otra `RUTAIA_PUERTO_API`, «Try it out» de Swagger UI sigue llamando al 8080: prueba con `curl` en el puerto nuevo.
 
-## 5. Ejecución de contenedores, backend y frontend
+Ver quién ocupa un puerto:
+- Windows (PowerShell). Con el `OwningProcess` del primer comando, `Get-Process -Id <PID>` dice qué programa es. El segundo comando muestra los rangos reservados por Hyper-V y WSL, que no se pueden usar:
+  ```powershell
+  Get-NetTCPConnection -State Listen | Where-Object LocalPort -in 5433,6333,5678,8080,5500
+  netsh interface ipv4 show excludedportrange protocol=tcp
+  ```
+- Linux (sin verificar; con `sudo` muestra el proceso):
+  ```bash
+  ss -ltnp | grep -E ':(5433|6333|5678|8080|5500)\b'
+  ```
 
-Orden: **contenedores → backend → frontend**, cada uno en su terminal y desde la raíz del repositorio.
+Un n8n instalado con `npm` puede escuchar en `[::]:5678` y quedarse con `localhost:5678`: debe aparecer solo `com.docker.backend` (Windows) o `docker-proxy` (Linux).
 
-PowerShell:
+### Clave de OpenRouter
+
+1. Crea una API key en https://openrouter.ai/settings/keys (*Create API Key*). Empieza por `sk-or-v1-` y solo se muestra una vez.
+2. La clave vive **solo** en la credencial «RutaIA OpenRouter» de n8n; nunca en el `.env`, el código ni el repositorio. En http://localhost:5678, crea la cuenta de propietario y luego entra a *Create → Credential → Header Auth* y completa:
+   - título `RutaIA OpenRouter`, exacto;
+   - Name `Authorization`;
+   - Value `Bearer <clave>`, con la palabra `Bearer`, **un espacio** y la clave.
+3. **Privacidad de los modelos gratuitos.** En https://openrouter.ai/settings/privacy:
+   - deja apagado *Zero Data Retention*;
+   - en *Data Training*, enciende «Allow free endpoints that train on request data» y «Allow free endpoints that publish prompts»;
+   - pulsa **Save changes**.
+
+   Sin esto, los modelos `:free` responden 404. Como esos proveedores pueden publicar los prompts, a OpenRouter solo viajan la pregunta, el nivel, el área y los datos de los cursos; nunca nombres ni correos.
+4. **Crédito.** El LLM es de pago (centavos por consulta). Con crédito comprado, los modelos `:free` admiten 1000 solicitudes por día.
+5. **No agregues una clave propia de Google AI Studio** en https://openrouter.ai/settings/integrations, y si ya la tienes, quítala. Con el LLM de pago, OpenRouter usa sus propios proveedores; con esa clave, Google respondía 500 y 504.
+
+## Ejecución de contenedores, backend y frontend
+
+El orden es **contenedores → backend → frontend**, cada uno en su terminal y desde la raíz del repositorio.
+
+Windows, PowerShell (verificado):
 ```powershell
 docker compose up -d
 docker compose ps
@@ -99,7 +149,7 @@ cd backend; .\gradlew.bat bootRun
 jwebserver -p 5500 -d "$((Resolve-Path .\frontend).Path)"
 ```
 
-bash:
+Linux, bash (sin verificar):
 ```bash
 docker compose up -d
 docker compose ps
@@ -111,55 +161,34 @@ cd backend && ./gradlew bootRun
 jwebserver -p 5500 -d "$(pwd)/frontend"
 ```
 
-`postgres` debe aparecer `healthy`. El backend termina de arrancar cuando el registro muestra `Tomcat started on port 8080`.
+`postgres` debe aparecer `healthy`, y el backend está listo cuando su registro muestra `Tomcat started on port 8080`. El primer arranque crea el esquema y la semilla: 10 estudiantes y 30 cursos, de los que 28 están activos. Para recargarlos a mano, sigue [docs/base-de-datos.md](docs/base-de-datos.md#ejecución-de-los-scripts).
 
 | Componente | URL |
 |---|---|
 | Frontend | http://localhost:5500 |
 | API | http://localhost:8080/api |
-| Swagger UI | http://localhost:8080/swagger-ui.html (especificación exportada en [docs/openapi.json](docs/openapi.json)) |
+| Swagger UI | http://localhost:8080/swagger-ui.html |
 | n8n | http://localhost:5678 |
 | Qdrant | http://127.0.0.1:6333/dashboard |
 
-**Base de datos.** Con el volumen `pgdata` vacío, PostgreSQL ejecuta solo `database/01_esquema.sql` y `database/02_datos_semilla.sql`: 10 estudiantes, 30 cursos (28 activos), 7 categorías y 3 niveles. Para recargarlos a mano, el comando es igual en ambos sistemas. Borra todas las consultas; después re-indexa (sección 6).
-```bash
-docker compose exec postgres psql -U rutaia_app -d rutaia -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/01_esquema.sql
-docker compose exec postgres psql -U rutaia_app -d rutaia -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/02_datos_semilla.sql
-```
+**Detener:** `docker compose stop` o `docker compose down`, sin `-v`. El backend y `jwebserver` se detienen con Ctrl+C.
 
-**Detener:** `docker compose stop` o `docker compose down`. **Nunca `docker compose down -v`** salvo para empezar de cero (ver «Errores conocidos»). El backend y `jwebserver` se detienen con Ctrl+C.
+## Importación de workflows
 
-## 6. Importación de workflows
+Los tres flujos están en `n8n/`, y el contenedor los ve en `/home/node/flujos`. Detalle en [docs/n8n.md](docs/n8n.md). Los comandos son iguales en PowerShell y bash.
 
-Los flujos están en `n8n/`, y el contenedor los ve en `/home/node/flujos`:
-
-| Archivo | ID | Webhook | Propósito |
-|---|---|---|---|
-| `rutaia-indexacion-cursos.json` | `RutaIAIndexacion` | `POST /webhook/rutaia-indexar-cursos` | W-2: lee los cursos de la API, genera sus embeddings y los guarda en Qdrant |
-| `rutaia-calibracion-umbral.json` | `RutaIACalibracion` | `POST /webhook/rutaia-calibrar-umbral` | W-3: herramienta auxiliar para calibrar el umbral |
-| `rutaia-consulta-rag.json` | `RutaIAConsultaRAG` | `POST /webhook/rutaia-consulta-rag` | W-1: atiende las consultas de la API (solo la llama Spring Boot) |
-
-Los comandos de los pasos 2, 4, 5 y 6 son iguales en PowerShell y en bash.
-
-1. **Credencial.** En http://localhost:5678, crea la cuenta de propietario y luego *Create → Credential → Header Auth*:
-   - título `RutaIA OpenRouter`;
-   - Name `Authorization`;
-   - Value `Bearer <tu clave>`.
-
-   Detalle en [docs/entorno-local.md](docs/entorno-local.md#4-primera-configuración-de-n8n-y-openrouter).
-2. **Importar** los tres flujos:
+1. **Importar:**
    ```bash
    docker compose exec n8n n8n import:workflow --input=/home/node/flujos/rutaia-indexacion-cursos.json
    docker compose exec n8n n8n import:workflow --input=/home/node/flujos/rutaia-calibracion-umbral.json
    docker compose exec n8n n8n import:workflow --input=/home/node/flujos/rutaia-consulta-rag.json
-   docker compose exec n8n n8n list:workflow
    ```
-3. **Asignar la credencial.** Los JSON la referencian con el ID de la máquina donde se crearon. En tu n8n, abre cada flujo y elige tu credencial «RutaIA OpenRouter»:
-   - en «Generar embeddings», en Indexación y en Calibración;
-   - en «Embedding de la pregunta» y «Consultar LLM», en Consulta RAG.
+2. **Asignar la credencial.** Las credenciales no viajan en el JSON, así que n8n pide elegirla. En http://localhost:5678, abre cada flujo y elige «RutaIA OpenRouter» en *Credential for Header Auth*:
+   - en «Generar embeddings» de *Indexación de cursos* y de *Calibración de umbral*;
+   - en «Embedding de la pregunta» y «Consultar LLM» de *Consulta RAG*.
 
-   Guarda cada flujo.
-4. **Publicar y reiniciar.** En n8n 2.x solo la versión publicada atiende `/webhook/…`. También puedes usar el botón **Publish** del editor; en ese caso no hace falta reiniciar.
+   Después, guarda cada flujo.
+3. **Publicar.** Solo la versión publicada atiende `/webhook/…`. Usa el botón **Publish** de cada flujo, o la CLI y un reinicio:
    ```bash
    docker compose exec n8n n8n publish:workflow --id=RutaIAIndexacion
    docker compose exec n8n n8n publish:workflow --id=RutaIACalibracion
@@ -167,94 +196,72 @@ Los comandos de los pasos 2, 4, 5 y 6 son iguales en PowerShell y en bash.
    docker compose restart n8n
    docker compose exec n8n n8n list:workflow --active=true
    ```
-5. **Indexar los cursos.** Usa 1 solicitud de embeddings. Repítelo cada vez que cargues, cambies o desactives cursos:
-   - PowerShell: `curl.exe -s -X POST http://127.0.0.1:5678/webhook/rutaia-indexar-cursos`
-   - bash: `curl -s -X POST http://127.0.0.1:5678/webhook/rutaia-indexar-cursos`
-
-   La respuesta esperada es:
-   ```json
-   {"coleccion":"rutaia_cursos","coleccionCreada":true,"cursosLeidos":30,"puntosGuardados":30,"activos":28,"inactivos":2,"totalPuntos":30}
+4. **Indexar los cursos**, con el backend en marcha. Gasta 1 solicitud; repítelo cada vez que cambies el catálogo:
+   ```powershell
+   curl.exe -s -X POST http://127.0.0.1:5678/webhook/rutaia-indexar-cursos
    ```
-   `coleccionCreada` vale `true` la primera vez y `false` en las siguientes.
-6. **Exportar (opcional).** Para guardar en el repositorio la versión publicada:
-   ```bash
-   docker compose exec n8n n8n export:workflow --id=<ID> --published --output=/home/node/flujos/<archivo>.json --pretty
-   ```
-   Antes de versionar, quita el bloque `"shared"`, que trae el correo del propietario.
+   En bash es el mismo comando con `curl`. La respuesta debe traer `"cursosLeidos":30,"puntosGuardados":30,"activos":28,"inactivos":2,"totalPuntos":30`.
 
-## 7. Endpoints principales y ejemplos de uso
+## Endpoints principales y ejemplos de uso
 
-Base `http://localhost:8080/api`, JSON UTF-8, fechas ISO-8601 en hora local. Todo 4xx o 5xx devuelve `{status, error, mensaje, ruta, fecha, detalles}`. La documentación interactiva está en http://localhost:8080/swagger-ui.html.
+Base `http://localhost:8080/api`, JSON UTF-8. Todo 4xx o 5xx devuelve `{status, error, mensaje, ruta, fecha, detalles}`. La documentación interactiva está en [Swagger UI](http://localhost:8080/swagger-ui.html) y la especificación en [docs/openapi.json](docs/openapi.json).
 
 | ID | Método y ruta | Respuesta | Errores |
 |---|---|---|---|
 | E-01 | `POST /api/estudiantes` | 201 Estudiante + `Location` | 400 · 409 correo ya registrado |
-| E-02 | `GET /api/estudiantes` | 200 lista, id asc | — |
-| E-03 | `GET /api/estudiantes/{id}` | 200 Estudiante | 404 |
-| E-04 | `GET /api/estudiantes/{id}/historial` | 200 lista de HistorialItem, fecha desc (`[]` si no hay) | 404 |
-| E-05 | `GET /api/cursos?categoria=&nivel=` | 200 cursos activos, id asc | 400 nivel inválido |
-| E-06 | `POST /api/admin/cursos` | 201 CursoAdmin (`activo` = true) + `Location` | 400 |
-| E-07 | `GET /api/admin/cursos` | 200 activos e inactivos, id asc | — |
-| E-08 | `GET /api/admin/cursos/{id}` | 200 CursoAdmin | 404 |
-| E-09 | `PUT /api/admin/cursos/{id}` | 200 CursoAdmin (`activo` no cambia) | 400 · 404 |
-| E-10 | `PATCH /api/admin/cursos/{id}/desactivar` | 200 CursoAdmin (`activo` = false; idempotente) | 404 |
-| E-11 | `POST /api/consultas` | 201 ConsultaResultado + `Location` en cualquier estado final (Respondida, Sin resultados o Error) | 400 · 404 (sin crear la consulta ni llamar a n8n) |
-| E-12 | `GET /api/consultas/{id}` | 200 ConsultaDetalle (E-11 + `calificacion`) | 404 |
-| E-13 | `POST /api/recomendaciones/{id}/calificacion` | 201 Calificacion + `Location` (1–5, comentario opcional ≤ 500) | 400 · 404 · 409 ya calificada |
-| E-14 | `GET /api/estadisticas` | 200 totales, promedio (2 decimales o null) y curso más recomendado (o null) | — |
+| E-02 · E-03 | `GET /api/estudiantes` · `GET /api/estudiantes/{id}` | 200 | 404 |
+| E-04 | `GET /api/estudiantes/{id}/historial` | 200, fecha descendente | 404 |
+| E-05 | `GET /api/cursos?categoria=&nivel=` | 200 cursos activos | 400 nivel inválido |
+| E-06 | `POST /api/admin/cursos` | 201 CursoAdmin + `Location` | 400 |
+| E-07 · E-08 | `GET /api/admin/cursos` · `GET /api/admin/cursos/{id}` | 200 activos e inactivos | 404 |
+| E-09 | `PUT /api/admin/cursos/{id}` | 200 (`activo` no cambia) | 400 · 404 |
+| E-10 | `PATCH /api/admin/cursos/{id}/desactivar` | 200 (`activo` false, idempotente) | 404 |
+| E-11 | `POST /api/consultas` | 201 en Respondida, Sin resultados o Error | 400 · 404, sin crear la consulta |
+| E-12 | `GET /api/consultas/{id}` | 200 E-11 + `calificacion` | 404 |
+| E-13 | `POST /api/recomendaciones/{id}/calificacion` | 201 (1–5, comentario opcional ≤ 500) | 400 · 404 · 409 ya calificada |
+| E-14 | `GET /api/estadisticas` | 200 totales, promedio y curso más recomendado | — |
 
-Ejemplos desde la raíz, con cuerpos en `pruebas/api/` (UTF-8 sin BOM). En PowerShell usa `curl.exe`, no el alias `curl`.
-
-PowerShell:
+Ejemplos desde la raíz en PowerShell, con cuerpos de `pruebas/api/` (en bash, cambia `curl.exe` por `curl`). E-12 y E-13 usan el `consultaId` y el `recomendacionId` que devuelve E-11. E-06 y E-10 cambian el catálogo, así que después hay que re-indexar.
 ```powershell
-curl.exe -s -i -X POST "http://localhost:8080/api/estudiantes" --data-binary "@pruebas/api/etapa2-estudiante-valido.json" -H "Content-Type: application/json"
+curl.exe -s -i -X POST "http://localhost:8080/api/estudiantes" --data-binary "@pruebas/api/estudiante-valido.json" -H "Content-Type: application/json"
 curl.exe -s "http://localhost:8080/api/cursos?categoria=Desarrollo%20web&nivel=B%C3%A1sico"
-curl.exe -s -i -X POST "http://localhost:8080/api/consultas" --data-binary "@pruebas/api/etapa6-01-paginas-web.json" -H "Content-Type: application/json"
+curl.exe -s -i -X POST "http://localhost:8080/api/admin/cursos" --data-binary "@pruebas/api/curso-valido.json" -H "Content-Type: application/json"
+curl.exe -s -X PATCH "http://localhost:8080/api/admin/cursos/31/desactivar"
+curl.exe -s -i -X POST "http://localhost:8080/api/consultas" --data-binary "@pruebas/api/consulta-cp01-paginas-web.json" -H "Content-Type: application/json"
 curl.exe -s "http://localhost:8080/api/estudiantes/1/historial"
-curl.exe -s "http://localhost:8080/api/consultas/7"
-curl.exe -s -i -X POST "http://localhost:8080/api/recomendaciones/1/calificacion" --data-binary "@pruebas/api/etapa7-01-calificacion-con-comentario.json" -H "Content-Type: application/json"
+curl.exe -s "http://localhost:8080/api/consultas/1"
+curl.exe -s -i -X POST "http://localhost:8080/api/recomendaciones/1/calificacion" --data-binary "@pruebas/api/calificacion-con-comentario.json" -H "Content-Type: application/json"
 curl.exe -s "http://localhost:8080/api/estadisticas"
 ```
 
-bash:
-```bash
-curl -s -i -X POST "http://localhost:8080/api/estudiantes" --data-binary "@pruebas/api/etapa2-estudiante-valido.json" -H "Content-Type: application/json"
-curl -s "http://localhost:8080/api/cursos?categoria=Desarrollo%20web&nivel=B%C3%A1sico"
-curl -s -i -X POST "http://localhost:8080/api/consultas" --data-binary "@pruebas/api/etapa6-01-paginas-web.json" -H "Content-Type: application/json"
-curl -s "http://localhost:8080/api/estudiantes/1/historial"
-curl -s "http://localhost:8080/api/consultas/7"
-curl -s -i -X POST "http://localhost:8080/api/recomendaciones/1/calificacion" --data-binary "@pruebas/api/etapa7-01-calificacion-con-comentario.json" -H "Content-Type: application/json"
-curl -s "http://localhost:8080/api/estadisticas"
-```
-
-Ejemplo de E-11 con estado Respondida (la descripción de la fuente se recorta aquí):
+Ejemplo de E-11 en estado Respondida, tomado de la integración (aquí se recortan la respuesta y la descripción de la fuente):
 ```json
 {"consultaId":7,"estudianteId":1,"pregunta":"Quiero aprender a crear páginas web.","fecha":"2026-11-03T11:07:02","estado":"Respondida",
  "respuesta":"Hola. Como orientador de RutaIA, te recomiendo la siguiente ruta de aprendizaje…","mensaje":null,"recomendacionId":1,
  "fuentes":[{"cursoId":1,"nombre":"Fundamentos de HTML y CSS para páginas web","descripcion":"…","categoria":"Desarrollo web","nivel":"Básico","duracionHoras":40,"similitud":0.593}]}
 ```
-Ejemplo de Sin resultados (consulta de cocina): `"estado":"Sin resultados","respuesta":null,"mensaje":"No encontramos cursos del catálogo relacionados con tu necesidad. Intenta describirla con otras palabras.","fuentes":[]`.
+La consulta de cocina devuelve `"estado":"Sin resultados","respuesta":null,"mensaje":"No encontramos cursos del catálogo relacionados con tu necesidad. Intenta describirla con otras palabras.","fuentes":[]`. Cada E-11 gasta 1 solicitud de embeddings y, si hay fuentes, 1 llamada al LLM.
 
-Cada E-11 gasta 1 solicitud de embeddings y, si hay fuentes, 1 llamada al LLM. Los cuerpos de las 10 consultas de prueba están en `pruebas/api/etapa6-01..10-*.json`.
+## Errores conocidos
 
-## 8. Errores conocidos
-
-| Error | Causa | Solución |
+| Síntoma | Causa | Solución |
 |---|---|---|
-| OpenRouter **429** «Rate limit exceeded: free-models-per-day» | Cuota de la capa gratuita: **50 solicitudes por día y cuenta** (20 por minuto) en los modelos `:free`, contadas por día UTC. Los embeddings son `:free` | Esperar al día siguiente (00:00 UTC) o comprar 10 créditos en total para subir el tope a 1000 por día. En la integración se alcanzó con 5 créditos comprados |
-| OpenRouter **429** «… is temporarily rate-limited upstream» | El proveedor gratuito del modelo está saturado para todos (no es tu cuota) | Reintentar más tarde o usar la variante de pago del modelo (ver la siguiente fila) |
-| OpenRouter **502** «Provider returned error» (Google 500 INTERNAL) o **504** «The operation was aborted» en el LLM | Con `gemma-…:free`, la capacidad compartida estaba en 429 y Google AI Studio fallaba también con la clave propia (BYOK). Pasó el 2026-11-03 y bloqueó la integración | Por eso el LLM es la variante de pago `google/gemma-4-31b-it`, que exige crédito en OpenRouter |
-| OpenRouter **404** en modelos `:free` | Privacidad de proveedores gratuitos no habilitada | Habilitarla en https://openrouter.ai/settings/privacy ([guía](docs/entorno-local.md#4-primera-configuración-de-n8n-y-openrouter)) |
-| OpenRouter **402** | Saldo negativo, o sin saldo para el LLM de pago | Revisar *Credits* en OpenRouter y agregar crédito; los `:free` exigen saldo ≥ 0 |
-| Un modelo gratuito se retira o deja de tener proveedores | OpenRouter retira variantes `:free` sin aviso | Alternativas de C10: embeddings `nvidia/nemotron-3.5-embed-1b:free` (también 2048; obliga a re-indexar y recalibrar el umbral). Para el LLM, `nvidia/nemotron-3-super-120b-a12b:free` ya no existe (2026-11-03), así que se usa la variante de pago `google/gemma-4-31b-it`. Solo cambia el nodo «Configuración»; el cambio se registra en [docs/contrato.md](docs/contrato.md) |
-| Las consultas terminan en Error con «La API (GET /cursos) no respondió», o `wget` a `host.docker.internal:8080` no conecta | n8n no alcanza la API de la máquina por `host.docker.internal`: lo bloquea el firewall | Windows: permitir Java en redes privadas (o `New-NetFirewallRule -DisplayName "RutaIA Java 8080" -Direction Inbound -Protocol TCP -LocalPort 8080 -Action Allow -Profile Private`). Linux con ufw: `sudo ufw allow from 172.16.0.0/12 to any port 8080 proto tcp`. El compose ya trae `extra_hosts: host.docker.internal:host-gateway`. Prueba en [docs/entorno-local.md](docs/entorno-local.md#conectividad-del-contenedor-n8n-hacia-la-máquina) |
-| `port is already allocated` (5433, 6333, 5678, 8080 o 5500) | Puertos ocupados por otro proceso. Ojo: un n8n instalado con npm puede tomar `[::]:5678` y «robar» `localhost:5678` | Windows: `Get-NetTCPConnection -LocalPort 5678 -State Listen` y `Get-Process -Id <PID>`. Linux: `sudo ss -ltnp 'sport = :5678'`. Detén ese proceso |
-| Desaparecen los flujos, la credencial, la colección y los datos | Se ejecutó `docker compose down -v`, que borra los volúmenes `pgdata`, `qdrant_storage` y `n8n_data` | Usar `docker compose stop` o `down` sin `-v`. Si ya pasó: recrear la credencial, importar y publicar los flujos, y re-indexar (sección 6) |
-| Linux: `EACCES: permission denied` al exportar flujos a `/home/node/flujos` | El contenedor n8n corre con UID 1000 y la carpeta `./n8n` es de otro usuario | `sudo setfacl -R -m u:1000:rwX -m d:u:1000:rwX n8n` (o `chmod -R a+rwX n8n`) |
-| PowerShell: `curl -s …` falla con «No se encuentra ningún parámetro…» | En Windows PowerShell 5.1, `curl` es un alias de `Invoke-WebRequest` | Usar `curl.exe` |
-| Linux: `./gradlew: Permission denied` o `/usr/bin/env: 'sh\r': No such file or directory` | `gradlew` perdió el permiso de ejecución (por ejemplo, si se descargó como ZIP) o tiene finales de línea CRLF | `chmod +x backend/gradlew`. Para el CRLF: volver a clonar con Git (`.gitattributes` fija `eol=lf`) o `sed -i 's/\r$//' backend/gradlew` |
-| El backend no arranca: falta `RUTAIA_DB_PASSWORD` o `password authentication failed` | No existe el `.env`, la contraseña está vacía o el volumen `pgdata` se creó con otra contraseña | Crear el `.env` (sección 4) o restaurar la contraseña anterior |
-| Un curso desactivado sigue con `activo: true` en Qdrant | La indexación no se sincroniza sola | No se recomienda igual, porque el flujo RAG descarta los cursos que no están en `GET /api/cursos`. Re-indexa (sección 6) para dejar Qdrant al día. Para reactivar un curso no hay endpoint: `UPDATE curso SET activo = true WHERE id = …;` y re-indexar |
-| La recomendación tarda 30–40 s | El proveedor de pago que asigna OpenRouter respondió lento (se vio una vez en la integración) | Es normal. El límite es 60 s en n8n y 90 s en la API (`RUTAIA_N8N_TIMEOUT_SEGUNDOS`) |
-
-Lista completa con diagnósticos: [docs/entorno-local.md](docs/entorno-local.md#8-problemas-comunes).
+| OpenRouter **401** | La clave está mal copiada en la credencial, falta `Bearer ` con espacio, o lo pegado no es una API key (por ejemplo, una *Management key*) | Corrige el Value de «RutaIA OpenRouter»: `Bearer sk-or-v1-…` |
+| OpenRouter **402** | Saldo negativo, o sin crédito para el LLM de pago | Agrega crédito en *Credits*; los `:free` exigen saldo ≥ 0 |
+| OpenRouter **404** en un modelo `:free` | Privacidad de los proveedores gratuitos sin habilitar, o modelo retirado | Habilítala (sección «Clave de OpenRouter»). Si se retiró, cambia `modeloEmbeddings` en «Configuración» de los 3 flujos, re-indexa y recalibra ([docs/n8n.md](docs/n8n.md#calibración)) |
+| OpenRouter **429** | Cuota diaria de los `:free` («free-models-per-day», contada por día UTC) o proveedor saturado («rate-limited upstream») | Espera al día siguiente (00:00 UTC) o reintenta más tarde; cada intento gasta solicitudes |
+| Google **500** o **504** en el LLM | Hay una clave propia de Google AI Studio en OpenRouter | Quítala en https://openrouter.ai/settings/integrations |
+| Las consultas terminan en Error con ECONNREFUSED o ENOTFOUND hacia OpenRouter | Falla de red pasajera | Reintenta |
+| `password authentication failed for user "rutaia_app"` | Se cambió `RUTAIA_DB_PASSWORD` después de crear el volumen `pgdata`: la imagen solo la usa la primera vez | Entra con `docker compose exec postgres psql -U rutaia_app -d rutaia` y ejecuta `ALTER USER rutaia_app PASSWORD '<la de tu .env>';`. O recrea solo el volumen `pgdata` ([docs/base-de-datos.md](docs/base-de-datos.md#ejecución-de-los-scripts)), lo que borra los datos |
+| `required variable RUTAIA_DB_PASSWORD is missing a value` | No existe `.env` o la contraseña está vacía | Crea el `.env` desde `.env.example` |
+| Un puerto cambiado en `.env` no surte efecto | El `.env` viene del ejemplo anterior (`RUTAIA_DB_URL`, `RUTAIA_N8N_WEBHOOK_URL`, `RUTAIA_CORS_ORIGINS`), que ya no se lee | Borra esas 3 líneas y usa las `RUTAIA_PUERTO_*` |
+| `port is already allocated` o `address already in use` | Otro programa usa el puerto | Cámbialo con su variable (sección «Puertos») o detén ese programa |
+| Windows: `An attempt was made to access a socket in a way forbidden by its access permissions` | El puerto está dentro de un rango reservado por Hyper-V o WSL | Elige otro fuera de los rangos de `netsh interface ipv4 show excludedportrange protocol=tcp` |
+| Las consultas terminan en Error con «La API (GET /cursos) no respondió» | n8n no alcanza la API: lo bloquea el firewall, o el contenedor n8n se creó con otro `RUTAIA_PUERTO_API` | Windows: permite Java en redes privadas. Linux con ufw: `sudo ufw allow from 172.16.0.0/12 to any port 8080 proto tcp`. Recrea n8n con `docker compose up -d n8n` y comprueba con `docker compose exec n8n printenv RUTAIA_API_URL` |
+| Desaparecen los flujos, la credencial, la colección y los datos | `docker compose down -v` borra los volúmenes `pgdata`, `qdrant_storage` y `n8n_data` | Usa `stop` o `down` sin `-v`. Si ya pasó, recrea la credencial, importa, publica y re-indexa |
+| Linux: `EACCES: permission denied` en `/home/node/flujos` | El contenedor n8n corre con UID 1000 y `./n8n` es de otro usuario | `sudo setfacl -R -m u:1000:rwX -m d:u:1000:rwX n8n` (o `chmod -R a+rwX n8n`) |
+| Git Bash: `import:workflow` no encuentra `C:/Program Files/Git/home/...` | Git Bash convierte las rutas que empiezan con `/` | Usa PowerShell o antepón `MSYS_NO_PATHCONV=1` |
+| PowerShell: `curl -s …` falla con «No se encuentra ningún parámetro…» | En Windows PowerShell 5.1, `curl` es un alias de `Invoke-WebRequest` | Usa `curl.exe` |
+| Linux: `./gradlew: Permission denied` o `/usr/bin/env: 'sh\r'` | `gradlew` perdió el permiso de ejecución o tiene finales CRLF | `chmod +x backend/gradlew`; para el CRLF, vuelve a clonar con Git (`.gitattributes` fija `eol=lf`) o `sed -i 's/\r$//' backend/gradlew` |
+| Un curso desactivado sigue con `activo: true` en Qdrant | La indexación no se sincroniza sola | No se recomienda igual (el flujo lo descarta contra la API). Re-indexa para dejar Qdrant al día |
+| La recomendación tarda 30–40 s | El proveedor que asigna OpenRouter respondió lento | Es normal: el límite es 60 s en n8n y 90 s en la API (`RUTAIA_N8N_TIMEOUT_SEGUNDOS`) |

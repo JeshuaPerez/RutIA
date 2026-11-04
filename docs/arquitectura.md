@@ -2,14 +2,16 @@
 
 RutaIA recomienda cursos existentes de un catálogo institucional a partir de una necesidad escrita en lenguaje natural. Usa una arquitectura RAG (*Retrieval-Augmented Generation*):
 
-- **Frontend** (HTML/CSS/JS servido con `jwebserver` en la máquina) — formulario de consulta y presentación de recomendaciones. Solo habla con la API.
-- **API REST Spring Boot** (en la máquina) — única puerta de entrada. Valida, guarda en PostgreSQL y delega la consulta RAG a n8n por webhook.
-- **n8n** (contenedor) — orquesta los flujos: genera embeddings con OpenRouter, busca en Qdrant y consulta el LLM.
-- **Qdrant** (contenedor) — base vectorial con los embeddings de los cursos (2048 dimensiones).
-- **PostgreSQL 17** (contenedor) — base relacional `rutaia` con el catálogo y las consultas.
-- **OpenRouter** (externo) — embeddings `nvidia/nemotron-3-embed-1b:free` (capa gratuita) y LLM `google/gemma-4-31b-it`, la variante de pago del modelo del contrato, que se usa desde la integración con crédito de OpenRouter (historial del modelo en `docs/n8n.md` y en el registro de cambios de `docs/contrato.md`). Solo n8n lo llama, con la credencial «RutaIA OpenRouter».
+- **Frontend** (HTML/CSS/JS servido con `jwebserver` en la máquina): formularios y presentación de recomendaciones. Solo habla con la API.
+- **API REST Spring Boot** (en la máquina): única puerta de entrada. Valida, guarda en PostgreSQL y delega la consulta RAG a n8n por webhook.
+- **n8n** (contenedor): orquesta los flujos; genera embeddings con OpenRouter, busca en Qdrant y consulta el LLM.
+- **Qdrant** (contenedor): base vectorial con los embeddings de los cursos (2048 dimensiones, Cosine).
+- **PostgreSQL 17** (contenedor): base relacional `rutaia` con el catálogo y las consultas.
+- **OpenRouter** (externo): embeddings `nvidia/nemotron-3-embed-1b:free` y LLM `google/gemma-4-31b-it` (de pago, ver «Decisiones»). Solo n8n lo llama, con la credencial «RutaIA OpenRouter».
 
 ## Diagrama de componentes y puertos
+
+Los puertos son los valores por defecto de `.env.example`; cada uno tiene su variable (README, «Puertos»).
 
 ```mermaid
 flowchart LR
@@ -33,7 +35,7 @@ flowchart LR
     API -->|JDBC 127.0.0.1:5433| PG
     API -->|POST /webhook/rutaia-consulta-rag<br/>127.0.0.1:5678| N8N
     N8N -->|REST http://qdrant:6333| QD
-    N8N -->|GET http://host.docker.internal:8080/api| API
+    N8N -->|"GET $env.RUTAIA_API_URL<br/>(host.docker.internal:8080/api)"| API
     N8N -->|HTTPS Bearer · credencial<br/>«RutaIA OpenRouter»| OR
 ```
 
@@ -50,20 +52,26 @@ sequenceDiagram
     participant OR as OpenRouter
     participant Q as Qdrant :6333
 
-    U->>FE: Escribe su necesidad, nivel y área
-    FE->>API: POST /api/...
-    API->>PG: Guarda la consulta
+    U->>FE: Escribe su necesidad
+    FE->>API: POST /api/consultas {estudianteId, pregunta}
+    API->>PG: Guarda la consulta en Pendiente
     API->>N: POST /webhook/rutaia-consulta-rag (timeout 90 s)
+    N->>API: GET /api/cursos (cursos activos)
     N->>OR: POST /embeddings (input_type=query)
     OR-->>N: vector de 2048 números
-    N->>Q: Búsqueda por similitud (con umbral calibrado)
+    N->>Q: POST /points/query (activo = true, limit 5, umbral 0.34)
     Q-->>N: cursos candidatos
-    N->>OR: POST /chat/completions (gemma-4-31b-it, un mensaje user)
-    OR-->>N: recomendación en texto
-    N-->>API: Respuesta JSON
-    API->>PG: Guarda el resultado
-    API-->>FE: Recomendaciones
-    FE-->>U: Muestra los cursos recomendados
+    Note over N: Filtra los que no están activos en la API
+    alt sin fuentes
+        N-->>API: Sin resultados (no llama al LLM)
+    else con fuentes
+        N->>OR: POST /chat/completions (gemma-4-31b-it, un mensaje user)
+        OR-->>N: recomendación en texto
+        N-->>API: Respondida con fuentes y similitud
+    end
+    API->>PG: Guarda el estado final y la recomendación
+    API-->>FE: 201 ConsultaResultado
+    FE-->>U: Recomendación y fuentes
 ```
 
 ## Flujo de indexación de cursos
@@ -76,11 +84,12 @@ sequenceDiagram
     participant OR as OpenRouter
     participant Q as Qdrant (qdrant:6333)
 
-    N->>API: GET /api/... (catálogo de cursos)
+    N->>API: GET /api/admin/cursos (activos e inactivos)
     API-->>N: cursos
-    N->>OR: POST /embeddings (input_type=passage, por lotes)
+    N->>Q: Crea la colección si no existe (2048, Cosine)
+    N->>OR: POST /embeddings (input_type=passage, una sola solicitud)
     OR-->>N: data[i].embedding (2048) + data[i].index
-    N->>Q: Crea la colección si no existe y hace upsert de puntos
+    N->>Q: Upsert de un punto por curso (id = cursoId)
 ```
 
 ## Backend
@@ -156,8 +165,31 @@ classDiagram
 - Agregar un motor: implementar `MotorRecomendacion` en un paquete nuevo de integracion (por ejemplo, `integracion.directo`) cumpliendo el contrato del Javadoc, y elegirlo por configuración: cada adaptador lleva `@ConditionalOnProperty(name = "rutaia.motor", havingValue = "…")` y `application.properties` dice cuál se usa. `ConsultaServicioImpl`, los controladores y el resto de la aplicación no cambian.
 - Varias instancias: la API no guarda estado de sesión (todo el estado está en PostgreSQL y cada petición es independiente), así que se pueden levantar varias instancias detrás de un balanceador.
 
-## Notas
+## Frontend
 
-- A OpenRouter solo viajan la pregunta, el nivel, el área y los datos de los cursos; nunca nombres ni correos.
-- Los modelos `:free` de OpenRouter admiten 20 solicitudes por minuto y 50 por día por cuenta (1000 por día con 10 créditos comprados). Cada consulta usa 1 embedding `:free` y, si hay fuentes, 1 llamada al LLM de pago.
-- Las rutas exactas de la API y los detalles de los flujos los definen las etapas posteriores (`docs/openapi.json`, `docs/n8n.md`).
+Una sola página en HTML, CSS y JavaScript nativos (módulos ES, Fetch, `async`/`await` y DOM), sin frameworks ni recursos externos. `index.html` carga `js/app.js` y el resto se importa desde ahí; todos los nombres van en minúsculas para que funcione igual en Linux.
+
+```
+frontend/js/
+├── config.js        API_BASE_URL: la única URL de servidor (http://localhost:8080/api)
+├── api.js           único fetch; una función por endpoint y errores 4xx/5xx como ApiError
+├── app.js           punto de entrada: pestañas, chip del estudiante activo
+├── estudiante.js    estudiante activo (id en localStorage) y aviso de cambios
+├── pestanas.js      pestañas accesibles (flechas, Inicio, Fin)
+├── registro.js      E-01 registro y E-02 elegir estudiante
+├── catalogo.js      E-05 tarjetas y filtros
+├── consulta.js      E-11 formulario, espera y resultado
+├── resultado.js     vista de E-11 o E-12: recomendación, mensaje y fuentes
+├── calificacion.js  E-13 estrellas y comentario
+├── historial.js     E-04 historial y E-12 detalle
+├── componentes.js · formulario.js · dom.js   piezas compartidas, errores por campo y nodos con textContent
+```
+
+## Decisiones
+
+- **Enumerados literales.** Niveles y estados se guardan con su texto exacto (`Básico`, `Sin resultados`): CHECK en la base y `AttributeConverter` con `@JsonValue` en Java, así la base, la API, n8n y el frontend usan el mismo texto.
+- **Doble filtro de cursos activos.** Qdrant filtra `activo = true` y «Filtrar fuentes» descarta todo curso que no esté en `GET /api/cursos`, así que un curso desactivado no se recomienda aunque no se haya re-indexado.
+- **Umbral 0.34.** Se midió con las consultas de prueba, no se adivinó ([n8n.md, «Calibración»](n8n.md#calibración)).
+- **Docker Compose para la infraestructura.** PostgreSQL, Qdrant y n8n con etiquetas exactas (nunca `latest`) y puertos solo en `127.0.0.1`: el mismo entorno en Windows y Linux. El backend y el frontend corren en la máquina.
+- **Puertos definidos una vez.** Cada puerto es una variable `RUTAIA_PUERTO_*` de `.env`: la leen Docker Compose y Spring Boot, y n8n recibe `RUTAIA_API_URL`, que los flujos leen desde su entorno con `{{ $env.RUTAIA_API_URL }}`.
+- **LLM de pago.** La variante gratuita de Gemma respondía 429 (proveedor saturado) y Google AI Studio 500/504, también con una clave propia. Por decisión del autor, el LLM es `google/gemma-4-31b-it`, el mismo modelo en su variante de pago (centavos por consulta); los embeddings siguen en la capa gratuita.
