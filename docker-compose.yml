@@ -14,7 +14,7 @@ services:
       POSTGRES_USER: ${RUTAIA_DB_USER:?Define RUTAIA_DB_USER en .env}
       POSTGRES_PASSWORD: ${RUTAIA_DB_PASSWORD:?Define RUTAIA_DB_PASSWORD en .env}
     ports:
-      - "127.0.0.1:5433:5432"
+      - "127.0.0.1:${RUTAIA_PUERTO_POSTGRES:-5433}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./database:/docker-entrypoint-initdb.d:ro
@@ -29,15 +29,18 @@ services:
     image: qdrant/qdrant:v1.20.0
     restart: unless-stopped
     ports:
-      - "127.0.0.1:6333:6333"
+      - "127.0.0.1:${RUTAIA_PUERTO_QDRANT:-6333}:6333"
     volumes:
       - qdrant_storage:/qdrant/storage
 
   n8n:
     image: docker.n8n.io/n8nio/n8n:2.45.7
     restart: unless-stopped
+    environment:
+      RUTAIA_API_URL: http://host.docker.internal:${RUTAIA_PUERTO_API:-8080}/api
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"
     ports:
-      - "127.0.0.1:5678:5678"
+      - "127.0.0.1:${RUTAIA_PUERTO_N8N:-5678}:5678"
     volumes:
       - n8n_data:/home/node/.n8n
       - ./n8n:/home/node/flujos

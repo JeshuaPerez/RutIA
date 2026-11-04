@@ -1,6 +1,6 @@
 [
   {
-    "updatedAt": "2026-11-03T17:01:21.000Z",
+    "updatedAt": "2026-11-04T00:12:03.000Z",
     "createdAt": "2026-11-02T23:24:59.602Z",
     "id": "RutaIAIndexacion",
     "name": "RutaIA - Indexación de cursos",
@@ -82,7 +82,7 @@
               {
                 "id": "a3c0e0b0-0000-4000-8000-000000000009",
                 "name": "apiBaseUrl",
-                "value": "http://host.docker.internal:8080/api",
+                "value": "={{ $env.RUTAIA_API_URL }}",
                 "type": "string"
               },
               {
@@ -789,9 +789,9 @@
     "meta": null,
     "nodeGroups": [],
     "pinData": {},
-    "versionId": "790c7b42-03a8-421e-9447-dafe1648d52a",
-    "activeVersionId": "790c7b42-03a8-421e-9447-dafe1648d52a",
-    "versionCounter": 4,
+    "versionId": "d6cebb65-6366-445b-a190-6146c9855e1e",
+    "activeVersionId": "d6cebb65-6366-445b-a190-6146c9855e1e",
+    "versionCounter": 5,
     "triggerCount": 1,
     "sourceWorkflowId": null,
     "tags": [],

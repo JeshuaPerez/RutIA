@@ -1,6 +1,6 @@
 [
   {
-    "updatedAt": "2026-11-03T17:01:33.000Z",
+    "updatedAt": "2026-11-04T00:12:17.000Z",
     "createdAt": "2026-11-02T23:40:48.118Z",
     "id": "RutaIACalibracion",
     "name": "RutaIA - Calibración de umbral",
@@ -71,7 +71,7 @@
               {
                 "id": "a4c0e0b0-0000-4000-8000-000000000025",
                 "name": "apiBaseUrl",
-                "value": "http://host.docker.internal:8080/api",
+                "value": "={{ $env.RUTAIA_API_URL }}",
                 "type": "string"
               },
               {
@@ -439,9 +439,9 @@
     "meta": null,
     "nodeGroups": [],
     "pinData": {},
-    "versionId": "5fcac003-52ba-48a1-9359-c3a425346c89",
-    "activeVersionId": "5fcac003-52ba-48a1-9359-c3a425346c89",
-    "versionCounter": 4,
+    "versionId": "45a8df69-7df3-4e59-8e24-c212289efc05",
+    "activeVersionId": "45a8df69-7df3-4e59-8e24-c212289efc05",
+    "versionCounter": 5,
     "triggerCount": 1,
     "sourceWorkflowId": null,
     "tags": [],
