@@ -1,0 +1,300 @@
+[
+  {
+    "id": "RutaIAComparacion",
+    "name": "RutaIA - Comparación semántica de preguntas",
+    "description": null,
+    "active": false,
+    "isArchived": false,
+    "nodes": [
+      {
+        "id": "c0a1e0b0-0000-4000-8000-000000000001",
+        "name": "Webhook",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2.2,
+        "position": [
+          0,
+          100
+        ],
+        "webhookId": "3f6b2c1d-8e4a-4b7c-9d2e-5a1f0c3b7e64",
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "rutaia-comparar-preguntas",
+          "responseMode": "responseNode",
+          "options": {}
+        }
+      },
+      {
+        "id": "c0a1e0b0-0000-4000-8000-000000000002",
+        "name": "Configuración",
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          220,
+          100
+        ],
+        "parameters": {
+          "mode": "manual",
+          "assignments": {
+            "assignments": [
+              {
+                "id": "c0a1e0b0-0000-4000-8000-000000000020",
+                "name": "modeloEmbeddings",
+                "value": "nvidia/nemotron-3-embed-1b:free",
+                "type": "string"
+              },
+              {
+                "id": "c0a1e0b0-0000-4000-8000-000000000021",
+                "name": "dimensionVector",
+                "value": 2048,
+                "type": "number"
+              },
+              {
+                "id": "c0a1e0b0-0000-4000-8000-000000000022",
+                "name": "openRouterUrl",
+                "value": "https://openrouter.ai/api/v1",
+                "type": "string"
+              }
+            ]
+          },
+          "options": {}
+        }
+      },
+      {
+        "id": "c0a1e0b0-0000-4000-8000-000000000003",
+        "name": "Validar preguntas",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          440,
+          100
+        ],
+        "parameters": {
+          "jsCode": "// Valida el cuerpo {\"preguntaA\":\"…\",\"preguntaB\":\"…\"} antes de gastar cuota.\nconst body = $('Webhook').first().json.body ?? {};\nconst { modeloEmbeddings } = $('Configuración').first().json;\nconst campos = ['preguntaA', 'preguntaB'];\nconst textos = {};\nfor (const campo of campos) {\n  const valor = body[campo];\n  if (typeof valor !== 'string' || !valor.trim()) {\n    throw new Error(`Falta \"${campo}\" o no es un texto`);\n  }\n  if (valor.trim().length > 1000) {\n    throw new Error(`\"${campo}\" supera los 1000 caracteres`);\n  }\n  textos[campo] = valor.trim();\n}\nif (textos.preguntaA.toLowerCase() === textos.preguntaB.toLowerCase()) {\n  throw new Error('preguntaA y preguntaB deben ser dos textos diferentes');\n}\n// Un ítem por pregunta: «Generar embedding» corre una vez por ítem, siempre con el mismo modelo.\nreturn campos.map((campo) => ({\n  json: {\n    campo,\n    texto: textos[campo],\n    cuerpo: {\n      model: modeloEmbeddings,\n      input: textos[campo],\n      input_type: 'query',\n      encoding_format: 'float',\n    },\n  },\n}));"
+        },
+        "onError": "continueErrorOutput"
+      },
+      {
+        "id": "c0a1e0b0-0000-4000-8000-000000000004",
+        "name": "Generar embedding",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          660,
+          100
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "={{ $('Configuración').first().json.openRouterUrl }}/embeddings",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify($json.cuerpo) }}",
+          "options": {
+            "response": {
+              "response": {
+                "fullResponse": true,
+                "neverError": true
+              }
+            },
+            "timeout": 60000
+          }
+        },
+        "onError": "continueErrorOutput",
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "zLvfa0tPU6IKdFZW",
+            "name": "RutaIA OpenRouter"
+          }
+        }
+      },
+      {
+        "id": "c0a1e0b0-0000-4000-8000-000000000005",
+        "name": "Validar vectores",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          880,
+          100
+        ],
+        "parameters": {
+          "jsCode": "// Comprueba que cada respuesta traiga un vector válido y que los dos vectores sean compatibles.\nconst { modeloEmbeddings, dimensionVector } = $('Configuración').first().json;\nconst preguntas = $('Validar preguntas').all();\nconst respuestas = $input.all();\nif (respuestas.length !== preguntas.length) {\n  throw new Error(`Se esperaban ${preguntas.length} respuestas de OpenRouter y llegaron ${respuestas.length}`);\n}\n// «Generar embedding» procesa un ítem por pregunta y conserva el orden.\nconst vectores = respuestas.map((item, i) => {\n  const { campo, texto } = preguntas[i].json;\n  const resp = item.json;\n  const body = resp.body ?? {};\n  if (resp.statusCode !== 200 || body.error) {\n    const codigo = body.error?.code ?? resp.statusCode;\n    const detalle = body.error?.message ?? JSON.stringify(body).slice(0, 300);\n    throw new Error(`OpenRouter respondió HTTP ${codigo} al generar el embedding de ${campo}: ${detalle}`);\n  }\n  const vector = body.data?.[0]?.embedding;\n  if (!Array.isArray(vector) || vector.length === 0) {\n    throw new Error(`OpenRouter no devolvió un vector para ${campo}`);\n  }\n  if (!vector.every(Number.isFinite)) {\n    throw new Error(`El vector de ${campo} tiene valores que no son números finitos`);\n  }\n  const norma = Math.sqrt(vector.reduce((suma, x) => suma + x * x, 0));\n  if (norma === 0) {\n    throw new Error(`El vector de ${campo} es todo ceros y no se puede comparar`);\n  }\n  return { campo, texto, modelo: body.model ?? modeloEmbeddings, vector, norma };\n});\nconst [a, b] = vectores;\nif (a.vector.length !== b.vector.length) {\n  throw new Error(`Los vectores no son compatibles: tienen ${a.vector.length} y ${b.vector.length} dimensiones`);\n}\nif (a.vector.length !== dimensionVector) {\n  throw new Error(`Los vectores tienen ${a.vector.length} dimensiones y el modelo debe dar ${dimensionVector}`);\n}\nif (a.modelo !== b.modelo) {\n  throw new Error(`Los vectores salieron de modelos distintos: ${a.modelo} y ${b.modelo}`);\n}\nreturn [{ json: { a, b } }];"
+        },
+        "onError": "continueErrorOutput"
+      },
+      {
+        "id": "c0a1e0b0-0000-4000-8000-000000000006",
+        "name": "Calcular similitud",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1100,
+          100
+        ],
+        "parameters": {
+          "jsCode": "// Similitud coseno = producto punto / (norma A × norma B). Va de -1 a 1; cuanto más cerca de 1, más parecidas.\n// Es solo aritmética sobre los vectores: aquí no participa ningún LLM.\nconst { a, b } = $input.first().json;\nlet productoPunto = 0;\nfor (let i = 0; i < a.vector.length; i++) {\n  productoPunto += a.vector[i] * b.vector[i];\n}\nconst similitud = productoPunto / (a.norma * b.norma);\nreturn [{\n  json: {\n    preguntaA: a.texto,\n    preguntaB: b.texto,\n    similitud: Math.round(similitud * 10000) / 10000,\n    medida: 'coseno',\n    modelo: $('Configuración').first().json.modeloEmbeddings,\n    dimensiones: a.vector.length,\n  },\n}];"
+        },
+        "onError": "continueErrorOutput"
+      },
+      {
+        "id": "c0a1e0b0-0000-4000-8000-000000000007",
+        "name": "Responder",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.5,
+        "position": [
+          1320,
+          100
+        ],
+        "parameters": {
+          "respondWith": "firstIncomingItem",
+          "options": {
+            "responseCode": 200
+          }
+        }
+      },
+      {
+        "id": "c0a1e0b0-0000-4000-8000-000000000008",
+        "name": "Armar error",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          880,
+          400
+        ],
+        "parameters": {
+          "jsCode": "// Normaliza el error de cualquier paso. Si falló la validación de la entrada es 400; si no, 500.\nconst e = $input.first().json.error;\nlet mensaje = typeof e === 'string' ? e : (e?.message ?? JSON.stringify(e));\nif (e && typeof e === 'object' && e.code && !String(mensaje).includes(e.code)) {\n  mensaje += ` (${e.code})`;\n}\nconst status = $prevNode.name === 'Validar preguntas' ? 400 : 500;\nreturn [{ json: { status, error: `Falló el paso «${$prevNode.name}»: ${mensaje}` } }];"
+        }
+      },
+      {
+        "id": "c0a1e0b0-0000-4000-8000-000000000009",
+        "name": "Responder error",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.5,
+        "position": [
+          1100,
+          400
+        ],
+        "parameters": {
+          "respondWith": "firstIncomingItem",
+          "options": {
+            "responseCode": "={{ $json.status }}"
+          }
+        }
+      }
+    ],
+    "connections": {
+      "Webhook": {
+        "main": [
+          [
+            {
+              "node": "Configuración",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Configuración": {
+        "main": [
+          [
+            {
+              "node": "Validar preguntas",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Validar preguntas": {
+        "main": [
+          [
+            {
+              "node": "Generar embedding",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Armar error",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Generar embedding": {
+        "main": [
+          [
+            {
+              "node": "Validar vectores",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Armar error",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Validar vectores": {
+        "main": [
+          [
+            {
+              "node": "Calcular similitud",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Armar error",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Calcular similitud": {
+        "main": [
+          [
+            {
+              "node": "Responder",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Armar error",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Armar error": {
+        "main": [
+          [
+            {
+              "node": "Responder error",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1"
+    },
+    "staticData": null,
+    "meta": null,
+    "pinData": {},
+    "tags": []
+  }
+]

@@ -1,0 +1,60 @@
+Examen: comparación semántica de dos preguntas
+Fecha: 2026-11-09 (hora local UTC−6)
+Flujo: n8n/rutaia-comparacion-preguntas.json (ID RutaIAComparacion, publicado)
+Webhook: POST http://127.0.0.1:5678/webhook/rutaia-comparar-preguntas
+Modelo de embeddings: nvidia/nemotron-3-embed-1b:free (el mismo de los otros tres flujos), 2048 dimensiones
+Medida: similitud coseno calculada en el nodo «Calcular similitud»; el flujo no tiene ningún nodo de LLM
+
+1. Nodos del flujo (ninguno llama a /chat/completions)
+   Comando: grep -o '"type": "[^"]*"' n8n/rutaia-comparacion-preguntas.json | sort | uniq -c
+      4 n8n-nodes-base.code             Validar preguntas, Validar vectores, Calcular similitud, Armar error
+      1 n8n-nodes-base.httpRequest      Generar embedding (POST /embeddings, una vez por pregunta)
+      2 n8n-nodes-base.respondToWebhook Responder, Responder error
+      1 n8n-nodes-base.set              Configuración
+      1 n8n-nodes-base.webhook          Webhook
+   Comando: grep -c "chat/completions\|modeloLlm" n8n/rutaia-comparacion-preguntas.json  ->  0
+
+2. Escenario del enunciado
+   Comando: curl -s -X POST http://127.0.0.1:5678/webhook/rutaia-comparar-preguntas -H "Content-Type: application/json" --data-binary @pruebas/n8n/comparacion-escenario.json
+   HTTP 200
+   {"preguntaA":"Quiero aprender a crear páginas web","preguntaB":"Me interesa desarrollar sitios con HTML y CSS","similitud":0.5356,"medida":"coseno","modelo":"nvidia/nemotron-3-embed-1b:free","dimensiones":2048}
+   Se repitió 4 veces y siempre dio 0.5356.
+
+3. Contraste: comparten «Quiero aprender», pero hablan de otro tema
+   Cuerpo: {"preguntaA":"Quiero aprender a crear páginas web","preguntaB":"Quiero aprender recetas de cocina italiana"}
+   HTTP 200
+   {"preguntaA":"Quiero aprender a crear páginas web","preguntaB":"Quiero aprender recetas de cocina italiana","similitud":0.3566,"medida":"coseno","modelo":"nvidia/nemotron-3-embed-1b:free","dimensiones":2048}
+   El escenario (sin palabras en común) da 0.5356 y el contraste (con 3 palabras en común) da 0.3566.
+
+4. Entrada inválida (no gasta cuota: falla antes de llamar a OpenRouter)
+   Cuerpo: {"preguntaA":"Quiero aprender a crear páginas web"}
+   HTTP 400
+   {"status":400,"error":"Falló el paso «Validar preguntas»: Falta \"preguntaB\" o no es un texto [line 9]"}
+
+   Cuerpo: {"preguntaA":"Quiero aprender a crear páginas web","preguntaB":"  quiero aprender a crear páginas web "}
+   HTTP 400
+   {"status":400,"error":"Falló el paso «Validar preguntas»: preguntaA y preguntaB deben ser dos textos diferentes [line 17]"}
+
+5. Pruebas locales de los nodos (sin red ni cuota)
+   Comando: node pruebas/n8n/comparacion-pruebas-locales.js   (código de salida 0)
+   == Calcular similitud (coseno)
+   OK  vectores iguales: 1
+   OK  misma dirección, otra escala: 1
+   OK  ortogonales: 0
+   OK  opuestos: -1
+   OK  a 45 grados: 0.7071
+   == Validar vectores
+   OK  dos vectores válidos: pasa con 2048 y 2048 dimensiones
+   OK  dimensiones distintas: rechaza: Los vectores no son compatibles: tienen 2048 y 1024 dimensiones
+   OK  otra dimensión en ambos: rechaza: Los vectores tienen 1024 dimensiones y el modelo debe dar 2048
+   OK  valor NaN: rechaza: El vector de preguntaB tiene valores que no son números finitos
+   OK  vector de ceros: rechaza: El vector de preguntaB es todo ceros y no se puede comparar
+   OK  vector vacío: rechaza: OpenRouter no devolvió un vector para preguntaB
+   OK  modelos distintos: rechaza: Los vectores salieron de modelos distintos: m1 y m2
+   OK  OpenRouter 429: rechaza: OpenRouter respondió HTTP 429 al generar el embedding de preguntaB: rate limited
+   OK  falta una respuesta: rechaza: Se esperaban 2 respuestas de OpenRouter y llegaron 1
+   Todas las pruebas pasaron
+
+6. Ejecuciones en n8n
+   Ejecuciones 103 a 112 del flujo RutaIAComparacion, todas «success» (los 400 también terminan en success porque se responden desde la rama de error).
+   Solicitudes a OpenRouter: 12 de embeddings (6 comparaciones × 2 preguntas) y 0 al LLM.
