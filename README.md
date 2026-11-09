@@ -175,17 +175,19 @@ jwebserver -p 5500 -d "$(pwd)/frontend"
 
 ## Importación de workflows
 
-Los tres flujos están en `n8n/`, y el contenedor los ve en `/home/node/flujos`. Detalle en [docs/n8n.md](docs/n8n.md). Los comandos son iguales en PowerShell y bash.
+Los cuatro flujos están en `n8n/`, y el contenedor los ve en `/home/node/flujos`. Detalle en [docs/n8n.md](docs/n8n.md). Los comandos son iguales en PowerShell y bash.
 
 1. **Importar:**
    ```bash
    docker compose exec n8n n8n import:workflow --input=/home/node/flujos/rutaia-indexacion-cursos.json
    docker compose exec n8n n8n import:workflow --input=/home/node/flujos/rutaia-calibracion-umbral.json
    docker compose exec n8n n8n import:workflow --input=/home/node/flujos/rutaia-consulta-rag.json
+   docker compose exec n8n n8n import:workflow --input=/home/node/flujos/rutaia-comparacion-preguntas.json
    ```
 2. **Asignar la credencial.** Las credenciales no viajan en el JSON, así que n8n pide elegirla. En http://localhost:5678, abre cada flujo y elige «RutaIA OpenRouter» en *Credential for Header Auth*:
    - en «Generar embeddings» de *Indexación de cursos* y de *Calibración de umbral*;
-   - en «Embedding de la pregunta» y «Consultar LLM» de *Consulta RAG*.
+   - en «Embedding de la pregunta» y «Consultar LLM» de *Consulta RAG*;
+   - en «Generar embedding» de *Comparación semántica de preguntas*.
 
    Después, guarda cada flujo.
 3. **Publicar.** Solo la versión publicada atiende `/webhook/…`. Usa el botón **Publish** de cada flujo, o la CLI y un reinicio:
@@ -193,6 +195,7 @@ Los tres flujos están en `n8n/`, y el contenedor los ve en `/home/node/flujos`.
    docker compose exec n8n n8n publish:workflow --id=RutaIAIndexacion
    docker compose exec n8n n8n publish:workflow --id=RutaIACalibracion
    docker compose exec n8n n8n publish:workflow --id=RutaIAConsultaRAG
+   docker compose exec n8n n8n publish:workflow --id=RutaIAComparacion
    docker compose restart n8n
    docker compose exec n8n n8n list:workflow --active=true
    ```
@@ -201,6 +204,43 @@ Los tres flujos están en `n8n/`, y el contenedor los ve en `/home/node/flujos`.
    curl.exe -s -X POST http://127.0.0.1:5678/webhook/rutaia-indexar-cursos
    ```
    En bash es el mismo comando con `curl`. La respuesta debe traer `"cursosLeidos":30,"puntosGuardados":30,"activos":28,"inactivos":2,"totalPuntos":30`.
+
+## Comparación semántica de dos preguntas
+
+El flujo de prueba *RutaIA - Comparación semántica de preguntas* ([n8n/rutaia-comparacion-preguntas.json](n8n/rutaia-comparacion-preguntas.json), ID `RutaIAComparacion`) recibe dos textos y devuelve qué tan parecidos son en significado. **No usa un LLM:** la decisión sale de una operación matemática sobre los dos vectores.
+
+```text
+Webhook → Configuración → Validar preguntas → Generar embedding (×2) → Validar vectores → Calcular similitud → Responder
+                               └──────────── cualquier error ───────────→ Armar error → Responder error (400 o 500)
+```
+
+| Nodo | Qué hace |
+|---|---|
+| Configuración | Fija el modelo `nvidia/nemotron-3-embed-1b:free` (el mismo de la indexación y de la consulta RAG) y la dimensión esperada, 2048 |
+| Validar preguntas | Exige `preguntaA` y `preguntaB` como textos no vacíos, de hasta 1000 caracteres y distintos entre sí. Si algo falla responde 400 sin gastar cuota. Devuelve un ítem por pregunta |
+| Generar embedding | Un solo nodo HTTP que llama a `POST /embeddings` de OpenRouter una vez por ítem. Como es el mismo nodo con el mismo parámetro, los dos textos usan **exactamente el mismo modelo** |
+| Validar vectores | Comprueba que cada respuesta sea un vector no vacío de números finitos y no todo ceros, que los dos tengan la misma dimensión (2048) y que OpenRouter informe el mismo modelo en ambos |
+| Calcular similitud | Similitud coseno: `(A · B) / (‖A‖ × ‖B‖)`. Va de −1 a 1, y cuanto más cerca de 1, más parecido es el significado. Se redondea a 4 decimales |
+
+**Probarlo.** Con los contenedores arriba y el flujo importado, con su credencial y publicado (sección anterior). No necesita el backend. Cada comparación gasta 2 solicitudes de embeddings y ninguna al LLM:
+```powershell
+curl.exe -s -X POST http://127.0.0.1:5678/webhook/rutaia-comparar-preguntas -H "Content-Type: application/json" --data-binary "@pruebas/n8n/comparacion-escenario.json"
+```
+Resultado real del escenario del examen. `medida`, `modelo` y `dimensiones` se agregan a la salida mínima:
+```json
+{"preguntaA":"Quiero aprender a crear páginas web","preguntaB":"Me interesa desarrollar sitios con HTML y CSS","similitud":0.5356,"medida":"coseno","modelo":"nvidia/nemotron-3-embed-1b:free","dimensiones":2048}
+```
+Las pruebas de los nodos sin red, con vectores conocidos y respuestas inválidas simuladas, se corren con `node pruebas/n8n/comparacion-pruebas-locales.js`. La evidencia completa está en [docs/evidencias/examen-comparacion.txt](docs/evidencias/examen-comparacion.txt).
+
+### ¿Por qué dos frases con palabras diferentes pueden producir embeddings similares?
+
+Un modelo de embeddings no compara letras ni cuenta palabras repetidas. Convierte cada texto en un vector de 2048 números que representa su **significado**. El modelo se entrenó con enormes cantidades de texto para que las frases que se usan en contextos parecidos queden en posiciones cercanas del espacio vectorial. Por eso aprende que «páginas web» y «sitios» nombran lo mismo, que «crear» y «desarrollar» son acciones equivalentes, y que HTML y CSS son justamente las tecnologías con que se hacen las páginas web. Además, el modelo lee la frase completa con su contexto y no palabra por palabra, así que el vector resume la idea general: alguien que quiere aprender a hacer páginas web.
+
+La similitud coseno mide el **ángulo** entre los dos vectores y no su tamaño. Dos vectores que apuntan en la misma dirección dan un valor cercano a 1, aunque las frases tengan distinta longitud o ninguna palabra en común.
+
+El experimento lo confirma. La pregunta B del escenario no comparte ninguna palabra con la A y obtiene **0.5356**. «Quiero aprender recetas de cocina italiana» comparte tres palabras con la A («Quiero aprender a…»), pero habla de otro tema y obtiene **0.3566**. Pesa más el significado que las palabras repetidas.
+
+El valor absoluto depende del modelo: el 0.87 del enunciado es un ejemplo. Con `nemotron-3-embed-1b` los valores salen más bajos: en la integración, el curso más parecido a «Quiero aprender a crear páginas web» obtuvo 0.593, y por eso la consulta RAG usa un umbral calibrado de 0.34 ([docs/n8n.md](docs/n8n.md#calibración)). Lo que se debe interpretar es la comparación entre pares y no el número aislado.
 
 ## Endpoints principales y ejemplos de uso
 
